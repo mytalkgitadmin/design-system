@@ -66,13 +66,20 @@ jobs:
         with:
           ref: develop
 
-      - name: Create branch with Ticket number
+      - name: Create branch with Ticket number and link to Jira
         run: |
           ISSUE_NUMBER="${{ steps.create.outputs.issue }}"
           ISSUE_TITLE="${{ steps.issue-parser.outputs.issueparser_branch}}"
           BRANCH_NAME="${ISSUE_NUMBER}-$(echo ${ISSUE_TITLE} | sed 's/ /-/g')"
           git checkout -b "${BRANCH_NAME}"
           git push origin "${BRANCH_NAME}"
+
+          # Jira에 브랜치 링크 코멘트 추가
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -d "{\"body\": \"🌿 Branch created: [\`${BRANCH_NAME}\`|${{ github.server_url }}/${{ github.repository }}/tree/${BRANCH_NAME}]\"}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${ISSUE_NUMBER}/comment"
 
       - name: Update issue title
         uses: actions-cool/issues-helper@v3
