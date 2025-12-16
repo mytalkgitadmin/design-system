@@ -11,6 +11,7 @@
     "@storybook/react-vite": "^10.1.7",
     "@vitest/browser-playwright": "^4.0.15",
     "@vitest/coverage-v8": "^4.0.15",
+    "chromatic": "^13.3.4",
     "playwright": "^1.57.0",
     "storybook": "^10.1.7",
     "tsup": "^8.5.1",
@@ -21,7 +22,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "chromatic": "npx chromatic --project-token=chpt_a7a4f2b4972968e"
   },
   "repository": {
     "type": "git",
