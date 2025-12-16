@@ -86,18 +86,27 @@ jobs:
             -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
             "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions")
           
-          echo "$RESPONSE" | jq -r '.transitions[] | "\(.id): \(.name) → \(.to.name)"'
+          echo "📋 사용 가능한 transition 목록:"
+          echo "$RESPONSE" | jq -r '.transitions[] | "  ID: \(.id) | \(.name) → \(.to.name)"'
           
-          # 목표 상태로 가는 transition ID 찾기
-          TRANSITION_ID=$(echo "$RESPONSE" | jq -r ".transitions[] | select(.to.name == \"${TARGET_STATUS}\" or .name == \"${TARGET_STATUS}\") | .id" | head -n 1)
+          # 대소문자 무시하고 목표 상태로 가는 transition ID 찾기
+          TRANSITION_ID=$(echo "$RESPONSE" | jq -r --arg target "$TARGET_STATUS" '.transitions[] | select(
+            (.to.name | ascii_downcase) == ($target | ascii_downcase) or
+            (.name | ascii_downcase) == ($target | ascii_downcase) or
+            (.to.name | ascii_downcase) | contains($target | ascii_downcase) or
+            (.name | ascii_downcase) | contains($target | ascii_downcase)
+          ) | .id' | head -n 1)
           
           if [ -z "$TRANSITION_ID" ] || [ "$TRANSITION_ID" = "null" ]; then
             echo "⚠️  '${TARGET_STATUS}'로 가는 transition을 찾을 수 없습니다."
+            echo "💡 위 목록에서 적절한 transition을 확인하고 라벨 매핑을 수정하세요."
             echo "skip_transition=true" >> $GITHUB_OUTPUT
           else
+            TRANSITION_NAME=$(echo "$RESPONSE" | jq -r ".transitions[] | select(.id == \"$TRANSITION_ID\") | .to.name")
             echo "transition_id=${TRANSITION_ID}" >> $GITHUB_OUTPUT
+            echo "transition_name=${TRANSITION_NAME}" >> $GITHUB_OUTPUT
             echo "skip_transition=false" >> $GITHUB_OUTPUT
-            echo "✅ Transition ID 발견: ${TRANSITION_ID}"
+            echo "✅ Transition ID 발견: ${TRANSITION_ID} → ${TRANSITION_NAME}"
           fi
 
       # 5. Jira 상태 업데이트
@@ -106,6 +115,7 @@ jobs:
         run: |
           JIRA_TICKET="${{ steps.extract-ticket.outputs.jira_ticket }}"
           TRANSITION_ID="${{ steps.get-transitions.outputs.transition_id }}"
+          TRANSITION_NAME="${{ steps.get-transitions.outputs.transition_name }}"
           
           echo "🔄 Jira 상태 업데이트 중..."
           
@@ -115,7 +125,7 @@ jobs:
             -d "{\"transition\": {\"id\": \"${TRANSITION_ID}\"}}" \
             "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions"
           
-          echo "✅ Jira 상태 업데이트 완료: ${{ steps.map-status.outputs.jira_status }}"
+          echo "✅ Jira 상태 업데이트 완료: ${TRANSITION_NAME}"
 
       # 6. Jira에 코멘트 추가
       - name: Add comment to Jira

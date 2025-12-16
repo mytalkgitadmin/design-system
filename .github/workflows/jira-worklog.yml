@@ -84,23 +84,40 @@ jobs:
           echo "🚀 작업 시작 처리 중..."
           
           # 1. 사용 가능한 transition 조회
+          echo "🔍 사용 가능한 transition 조회 중..."
           TRANSITIONS=$(curl -s -X GET \
             -H "Content-Type: application/json" \
             -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
             "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions")
           
-          # "In Progress" 또는 "진행 중"으로 가는 transition 찾기
-          TRANSITION_ID=$(echo "$TRANSITIONS" | jq -r '.transitions[] | select(.to.name == "In Progress" or .to.name == "진행 중") | .id' | head -n 1)
+          echo "📋 사용 가능한 transition 목록:"
+          echo "$TRANSITIONS" | jq -r '.transitions[] | "  ID: \(.id) | \(.name) → \(.to.name)"'
+          
+          # 여러 패턴으로 "In Progress" 상태 찾기 (대소문자 무시)
+          TRANSITION_ID=$(echo "$TRANSITIONS" | jq -r '.transitions[] | select(
+            (.to.name | ascii_downcase) == "in progress" or
+            (.to.name | ascii_downcase) == "진행 중" or
+            (.to.name | ascii_downcase) == "진행중" or
+            (.to.name | ascii_downcase) == "개발중" or
+            (.to.name | ascii_downcase) == "개발 중" or
+            (.name | ascii_downcase) == "in progress" or
+            (.name | ascii_downcase) | contains("progress")
+          ) | .id' | head -n 1)
           
           if [ -n "$TRANSITION_ID" ] && [ "$TRANSITION_ID" != "null" ]; then
-            # 상태 변경
+            TRANSITION_NAME=$(echo "$TRANSITIONS" | jq -r ".transitions[] | select(.id == \"$TRANSITION_ID\") | .to.name")
+            echo "✅ 상태 변경 transition 발견: ID=$TRANSITION_ID → $TRANSITION_NAME"
+            
             curl -X POST \
               -H "Content-Type: application/json" \
               -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
               -d "{\"transition\": {\"id\": \"${TRANSITION_ID}\"}}" \
               "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions"
             
-            echo "✅ 상태를 '진행 중'으로 변경했습니다."
+            echo "✅ 상태를 '$TRANSITION_NAME'으로 변경했습니다."
+          else
+            echo "⚠️  'In Progress' 관련 transition을 찾을 수 없습니다."
+            echo "💡 위 목록에서 적절한 transition을 확인하고 워크플로우를 수정하세요."
           fi
           
           # 2. Work Log 추가 (1초만 기록)
@@ -193,21 +210,40 @@ jobs:
           echo "✅ Work Log 추가 완료"
           
           # 3. 상태를 "Done"으로 변경
+          echo "🔍 사용 가능한 transition 조회 중..."
           TRANSITIONS=$(curl -s -X GET \
             -H "Content-Type: application/json" \
             -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
             "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions")
           
-          TRANSITION_ID=$(echo "$TRANSITIONS" | jq -r '.transitions[] | select(.to.name == "Done" or .to.name == "완료" or .to.name == "해결됨") | .id' | head -n 1)
+          echo "📋 사용 가능한 transition 목록:"
+          echo "$TRANSITIONS" | jq -r '.transitions[] | "  ID: \(.id) | \(.name) → \(.to.name)"'
+          
+          # 여러 패턴으로 Done 상태 찾기 (대소문자 무시)
+          TRANSITION_ID=$(echo "$TRANSITIONS" | jq -r '.transitions[] | select(
+            (.to.name | ascii_downcase) == "done" or
+            (.to.name | ascii_downcase) == "완료" or
+            (.to.name | ascii_downcase) == "해결됨" or
+            (.to.name | ascii_downcase) == "종료" or
+            (.to.name | ascii_downcase) == "closed" or
+            (.name | ascii_downcase) == "done" or
+            (.name | ascii_downcase) | contains("done")
+          ) | .id' | head -n 1)
           
           if [ -n "$TRANSITION_ID" ] && [ "$TRANSITION_ID" != "null" ]; then
+            TRANSITION_NAME=$(echo "$TRANSITIONS" | jq -r ".transitions[] | select(.id == \"$TRANSITION_ID\") | .to.name")
+            echo "✅ 상태 변경 transition 발견: ID=$TRANSITION_ID → $TRANSITION_NAME"
+            
             curl -X POST \
               -H "Content-Type: application/json" \
               -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
               -d "{\"transition\": {\"id\": \"${TRANSITION_ID}\"}}" \
               "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions"
             
-            echo "✅ 상태를 'Done'으로 변경했습니다."
+            echo "✅ 상태를 '$TRANSITION_NAME'으로 변경했습니다."
+          else
+            echo "⚠️  'Done' 관련 transition을 찾을 수 없습니다."
+            echo "💡 위 목록에서 적절한 transition을 확인하고 워크플로우를 수정하세요."
           fi
           
           echo "work_time=${WORK_HOURS}시간 ${WORK_MINUTES}분" >> $GITHUB_OUTPUT
