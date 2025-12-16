@@ -2,7 +2,7 @@
   "color": {
     "gray": {
       "50": {
-        "value": "#fafbfd",
+        "value": "#f8f9fc",
         "type": "color",
         "description": "화면 전체 배경 (Page BG)"
       },
@@ -104,59 +104,59 @@
       }
     },
     "alpha": {
-      "b100": {
+      "black100": {
         "value": "#000000",
         "type": "color"
       },
-      "w100": {
+      "white100": {
         "value": "#ffffff",
         "type": "color"
       },
-      "b8": {
+      "black8": {
         "value": "#00000014",
         "type": "color"
       },
-      "b16": {
+      "black16": {
         "value": "#00000029",
         "type": "color"
       },
-      "b24": {
+      "black24": {
         "value": "#0000003d",
         "type": "color"
       },
-      "b80": {
+      "black80": {
         "value": "#000000cc",
         "type": "color"
       },
-      "b64": {
+      "black64": {
         "value": "#000000a3",
         "type": "color"
       },
-      "b40": {
+      "black40": {
         "value": "#00000066",
         "type": "color"
       },
-      "w80": {
+      "white80": {
         "value": "#ffffffcc",
         "type": "color"
       },
-      "w64": {
+      "white64": {
         "value": "#ffffffa3",
         "type": "color"
       },
-      "w40": {
+      "white40": {
         "value": "#ffffff66",
         "type": "color"
       },
-      "w24": {
+      "white24": {
         "value": "#ffffff3d",
         "type": "color"
       },
-      "w16": {
+      "white16": {
         "value": "#ffffff29",
         "type": "color"
       },
-      "w8": {
+      "white8": {
         "value": "#ffffff14",
         "type": "color"
       }

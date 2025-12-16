@@ -65,23 +65,3 @@ button {
   background: none;
   padding: 0;
 }
-
-.click {
-  position: relative;
-  cursor: pointer;
-}
-
-.box {
-  height: 80px;
-}
-.text {
-  padding: 8px;
-  line-height: 1;
-}
-.text strong {
-  font-size: 13px;
-}
-.text span {
-  font-size: 12px;
-  opacity: 0.5;
-}

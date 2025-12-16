@@ -1,6 +1,8 @@
 import { useState } from 'react';
 
-export type CopyFormat = 'hex' | 'ts-token' | 'css-class' | 'css-var';
+import styles from './Palette.module.css';
+
+export type CopyFormat = 'hex' | 'token' | 'var';
 
 export interface PaletteProps {
   color?: string;
@@ -27,19 +29,20 @@ const ColorBox: React.FC<{
     switch (format) {
       case 'hex':
         return color;
-      case 'ts-token':
+      case 'token':
         // gray-500 -> color.gray[500]
         if (nameParts.length === 2) {
           return `color.${nameParts[0]}[${nameParts[1]}]`;
         }
+        // w8, b100 등 alpha 색상
+        if (nameParts[0].match(/^[wb]\d+$/)) {
+          return `color.alpha.${nameParts[0]}`;
+        }
         // white, black 등
         return `color.base.${nameParts[0]}`;
-      case 'css-class':
-        // gray-500 -> bg-gray-500 또는 text-gray-500
-        return `bg-${name.toLowerCase()}`;
-      case 'css-var':
-        // gray-500 -> var(--color-gray-500)
-        return `var(--color-${name.toLowerCase()})`;
+      case 'var':
+        // gray-500 -> var(--gray-500)
+        return `var(--${name.toLowerCase()})`;
       default:
         return color;
     }
@@ -53,43 +56,24 @@ const ColorBox: React.FC<{
   };
 
   return (
-    <div className='click' onClick={handleClick} style={{ position: 'relative' }}>
+    <div className={styles.click} onClick={handleClick}>
       <div
-        className='box'
+        className={styles.box}
         style={{
           backgroundColor: color,
           border: isBorder ? '1px solid #eee' : '0',
+          position: 'relative',
         }}
-      />
-
-      <p className='text'>
+      >
+        {copied && (
+          <div className={styles.copy}>{getFormattedValue(copyFormat)}</div>
+        )}
+      </div>
+      <p className={styles.text}>
         <strong>{name.toLowerCase()}</strong>
         <br />
         <span>{color}</span>
       </p>
-
-      {copied && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            color: 'white',
-            padding: '8px 12px',
-            borderRadius: '4px',
-            fontSize: '12px',
-            fontWeight: '500',
-            pointerEvents: 'none',
-            zIndex: 10,
-            maxWidth: '200px',
-            wordBreak: 'break-all',
-          }}
-        >
-          {getFormattedValue(copyFormat)}
-        </div>
-      )}
     </div>
   );
 };
