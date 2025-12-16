@@ -1,0 +1,158 @@
+name: Sync GitHub Issue Status to Jira
+
+on:
+  issues:
+    types: [labeled, unlabeled, closed, reopened]
+
+jobs:
+  sync-to-jira:
+    name: Sync Issue Status to Jira
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. GitHub Issue에서 Jira 티켓 번호 추출
+      - name: Extract Jira ticket from issue
+        id: extract-ticket
+        run: |
+          TITLE="${{ github.event.issue.title }}"
+          BODY="${{ github.event.issue.body }}"
+          
+          # 제목에서 [JIRA-123] 형식으로 추출
+          JIRA_TICKET=$(echo "$TITLE" | grep -oE '\[([A-Z]+-[0-9]+)\]' | tr -d '[]' | head -n 1)
+          
+          # 제목에 없으면 본문에서 추출
+          if [ -z "$JIRA_TICKET" ]; then
+            JIRA_TICKET=$(echo "$BODY" | grep -oE '([A-Z]+-[0-9]+)' | head -n 1)
+          fi
+          
+          if [ -z "$JIRA_TICKET" ]; then
+            echo "⚠️  Jira 티켓을 찾을 수 없습니다. 동기화를 건너뜁니다."
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "jira_ticket=${JIRA_TICKET}" >> $GITHUB_OUTPUT
+          echo "skip=false" >> $GITHUB_OUTPUT
+          echo "✅ Jira 티켓 발견: ${JIRA_TICKET}"
+
+      # 3. GitHub Issue 상태를 Jira 상태로 매핑
+      - name: Map GitHub status to Jira
+        if: steps.extract-ticket.outputs.skip != 'true'
+        id: map-status
+        run: |
+          LABELS="${{ join(github.event.issue.labels.*.name, ',') }}"
+          IS_CLOSED="${{ github.event.issue.state == 'closed' }}"
+          
+          echo "현재 라벨: ${LABELS}"
+          echo "이슈 상태: ${{ github.event.issue.state }}"
+          
+          # 상태 매핑 로직
+          if [ "$IS_CLOSED" = "true" ]; then
+            JIRA_STATUS="Done"
+            COMMENT="✅ 작업 완료 (GitHub Issue가 닫혔습니다)"
+          elif echo "$LABELS" | grep -q "in progress"; then
+            JIRA_STATUS="In Progress"
+            COMMENT="🚀 작업 시작"
+          elif echo "$LABELS" | grep -q "review"; then
+            JIRA_STATUS="In Review"
+            COMMENT="👀 리뷰 중"
+          elif echo "$LABELS" | grep -q "blocked"; then
+            JIRA_STATUS="Blocked"
+            COMMENT="🚧 작업 블로킹됨"
+          else
+            echo "⚠️  매핑할 Jira 상태가 없습니다."
+            echo "skip_update=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "jira_status=${JIRA_STATUS}" >> $GITHUB_OUTPUT
+          echo "comment=${COMMENT}" >> $GITHUB_OUTPUT
+          echo "skip_update=false" >> $GITHUB_OUTPUT
+          echo "✅ Jira 상태로 매핑: ${JIRA_STATUS}"
+
+      # 4. Jira API - 사용 가능한 transition 조회
+      - name: Get available Jira transitions
+        if: steps.map-status.outputs.skip_update != 'true' && steps.extract-ticket.outputs.skip != 'true'
+        id: get-transitions
+        run: |
+          JIRA_TICKET="${{ steps.extract-ticket.outputs.jira_ticket }}"
+          TARGET_STATUS="${{ steps.map-status.outputs.jira_status }}"
+          
+          echo "🔍 사용 가능한 transition 조회 중..."
+          
+          RESPONSE=$(curl -s -X GET \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions")
+          
+          echo "$RESPONSE" | jq -r '.transitions[] | "\(.id): \(.name) → \(.to.name)"'
+          
+          # 목표 상태로 가는 transition ID 찾기
+          TRANSITION_ID=$(echo "$RESPONSE" | jq -r ".transitions[] | select(.to.name == \"${TARGET_STATUS}\" or .name == \"${TARGET_STATUS}\") | .id" | head -n 1)
+          
+          if [ -z "$TRANSITION_ID" ] || [ "$TRANSITION_ID" = "null" ]; then
+            echo "⚠️  '${TARGET_STATUS}'로 가는 transition을 찾을 수 없습니다."
+            echo "skip_transition=true" >> $GITHUB_OUTPUT
+          else
+            echo "transition_id=${TRANSITION_ID}" >> $GITHUB_OUTPUT
+            echo "skip_transition=false" >> $GITHUB_OUTPUT
+            echo "✅ Transition ID 발견: ${TRANSITION_ID}"
+          fi
+
+      # 5. Jira 상태 업데이트
+      - name: Update Jira status
+        if: steps.get-transitions.outputs.skip_transition != 'true' && steps.map-status.outputs.skip_update != 'true' && steps.extract-ticket.outputs.skip != 'true'
+        run: |
+          JIRA_TICKET="${{ steps.extract-ticket.outputs.jira_ticket }}"
+          TRANSITION_ID="${{ steps.get-transitions.outputs.transition_id }}"
+          
+          echo "🔄 Jira 상태 업데이트 중..."
+          
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -d "{\"transition\": {\"id\": \"${TRANSITION_ID}\"}}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions"
+          
+          echo "✅ Jira 상태 업데이트 완료: ${{ steps.map-status.outputs.jira_status }}"
+
+      # 6. Jira에 코멘트 추가
+      - name: Add comment to Jira
+        if: steps.extract-ticket.outputs.skip != 'true' && steps.map-status.outputs.skip_update != 'true'
+        run: |
+          JIRA_TICKET="${{ steps.extract-ticket.outputs.jira_ticket }}"
+          COMMENT="${{ steps.map-status.outputs.comment }}"
+          GITHUB_URL="${{ github.event.issue.html_url }}"
+          ACTOR="${{ github.actor }}"
+          
+          COMMENT_BODY="${COMMENT}\n\n📌 By: ${ACTOR}\n🔗 GitHub Issue: ${GITHUB_URL}"
+          
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -d "{\"body\": \"${COMMENT_BODY}\"}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/comment"
+          
+          echo "✅ Jira 코멘트 추가 완료"
+
+      # 7. GitHub Issue에 동기화 완료 코멘트
+      - name: Comment sync result on GitHub
+        if: steps.extract-ticket.outputs.skip != 'true'
+        uses: actions-cool/issues-helper@v3
+        with:
+          actions: "create-comment"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            ## 🔄 Jira 동기화 완료
+            
+            **Jira Ticket:** [${{ steps.extract-ticket.outputs.jira_ticket }}](${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.extract-ticket.outputs.jira_ticket }})
+            **상태:** ${{ steps.map-status.outputs.jira_status }}
+            **메시지:** ${{ steps.map-status.outputs.comment }}
+            
+            _자동으로 Jira 상태가 업데이트되었습니다._
+
