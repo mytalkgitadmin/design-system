@@ -1,0 +1,231 @@
+name: Setup Jira Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      sample_issue:
+        description: '샘플 Jira 티켓 번호 (예: FMTW-1)'
+        required: true
+        type: string
+      start_transition:
+        description: '작업 시작 Transition ID (조회 후 입력)'
+        required: false
+        type: string
+      end_transition:
+        description: '작업 완료 Transition ID (조회 후 입력)'
+        required: false
+        type: string
+      review_transition:
+        description: '리뷰 Transition ID (선택사항)'
+        required: false
+        type: string
+      blocked_transition:
+        description: '블로킹 Transition ID (선택사항)'
+        required: false
+        type: string
+
+jobs:
+  setup-workflow:
+    name: Setup Jira Workflow Configuration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch Jira transitions
+        id: fetch-transitions
+        run: |
+          SAMPLE_ISSUE="${{ github.event.inputs.sample_issue }}"
+          
+          echo "🔍 ${SAMPLE_ISSUE}의 transition 조회 중..."
+          
+          RESPONSE=$(curl -s -X GET \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${SAMPLE_ISSUE}/transitions")
+          
+          # 에러 체크
+          if echo "$RESPONSE" | jq -e '.errorMessages' > /dev/null 2>&1; then
+            echo "❌ Jira API 에러:"
+            echo "$RESPONSE" | jq -r '.errorMessages[]'
+            exit 1
+          fi
+          
+          echo "📋 사용 가능한 Transition 목록:"
+          echo "$RESPONSE" | jq -r '.transitions[] | "  ID: \(.id) | \(.name) → \(.to.name)"'
+          
+          # transitions 데이터를 output으로 저장
+          echo "transitions<<EOF" >> $GITHUB_OUTPUT
+          echo "$RESPONSE" | jq '.transitions'
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Auto-detect transitions if not provided
+        id: auto-detect
+        run: |
+          TRANSITIONS='${{ steps.fetch-transitions.outputs.transitions }}'
+          
+          START_ID="${{ github.event.inputs.start_transition }}"
+          END_ID="${{ github.event.inputs.end_transition }}"
+          REVIEW_ID="${{ github.event.inputs.review_transition }}"
+          BLOCKED_ID="${{ github.event.inputs.blocked_transition }}"
+          
+          # 입력이 없으면 자동 탐지
+          if [ -z "$START_ID" ]; then
+            echo "🔍 작업 시작 transition 자동 탐지 중..."
+            START_ID=$(echo "$TRANSITIONS" | jq -r '.[] | select(
+              (.to.name | ascii_downcase) == "in progress" or
+              (.to.name | ascii_downcase) == "진행 중" or
+              (.to.name | ascii_downcase) == "진행중"
+            ) | .id' | head -n 1)
+            
+            if [ -n "$START_ID" ] && [ "$START_ID" != "null" ]; then
+              START_NAME=$(echo "$TRANSITIONS" | jq -r ".[] | select(.id == \"$START_ID\") | .to.name")
+              echo "✅ 자동 탐지: 작업 시작 = ID:$START_ID ($START_NAME)"
+            fi
+          fi
+          
+          if [ -z "$END_ID" ]; then
+            echo "🔍 작업 완료 transition 자동 탐지 중..."
+            END_ID=$(echo "$TRANSITIONS" | jq -r '.[] | select(
+              (.to.name | ascii_downcase) == "done" or
+              (.to.name | ascii_downcase) == "완료" or
+              (.to.name | ascii_downcase) == "해결됨"
+            ) | .id' | head -n 1)
+            
+            if [ -n "$END_ID" ] && [ "$END_ID" != "null" ]; then
+              END_NAME=$(echo "$TRANSITIONS" | jq -r ".[] | select(.id == \"$END_ID\") | .to.name")
+              echo "✅ 자동 탐지: 작업 완료 = ID:$END_ID ($END_NAME)"
+            fi
+          fi
+          
+          if [ -z "$REVIEW_ID" ]; then
+            REVIEW_ID=$(echo "$TRANSITIONS" | jq -r '.[] | select(
+              (.to.name | ascii_downcase) | contains("review") or
+              (.to.name | ascii_downcase) | contains("리뷰")
+            ) | .id' | head -n 1)
+            
+            if [ -n "$REVIEW_ID" ] && [ "$REVIEW_ID" != "null" ]; then
+              REVIEW_NAME=$(echo "$TRANSITIONS" | jq -r ".[] | select(.id == \"$REVIEW_ID\") | .to.name")
+              echo "✅ 자동 탐지: 리뷰 = ID:$REVIEW_ID ($REVIEW_NAME)"
+            fi
+          fi
+          
+          if [ -z "$BLOCKED_ID" ]; then
+            BLOCKED_ID=$(echo "$TRANSITIONS" | jq -r '.[] | select(
+              (.to.name | ascii_downcase) | contains("block") or
+              (.to.name | ascii_downcase) | contains("블로킹")
+            ) | .id' | head -n 1)
+            
+            if [ -n "$BLOCKED_ID" ] && [ "$BLOCKED_ID" != "null" ]; then
+              BLOCKED_NAME=$(echo "$TRANSITIONS" | jq -r ".[] | select(.id == \"$BLOCKED_ID\") | .to.name")
+              echo "✅ 자동 탐지: 블로킹 = ID:$BLOCKED_ID ($BLOCKED_NAME)"
+            fi
+          fi
+          
+          echo "start_id=$START_ID" >> $GITHUB_OUTPUT
+          echo "end_id=$END_ID" >> $GITHUB_OUTPUT
+          echo "review_id=$REVIEW_ID" >> $GITHUB_OUTPUT
+          echo "blocked_id=$BLOCKED_ID" >> $GITHUB_OUTPUT
+
+      - name: Create workflow config file
+        run: |
+          SAMPLE_ISSUE="${{ github.event.inputs.sample_issue }}"
+          TRANSITIONS='${{ steps.fetch-transitions.outputs.transitions }}'
+          START_ID="${{ steps.auto-detect.outputs.start_id }}"
+          END_ID="${{ steps.auto-detect.outputs.end_id }}"
+          REVIEW_ID="${{ steps.auto-detect.outputs.review_id }}"
+          BLOCKED_ID="${{ steps.auto-detect.outputs.blocked_id }}"
+          
+          # null 값 처리
+          [ "$START_ID" = "null" ] && START_ID=""
+          [ "$END_ID" = "null" ] && END_ID=""
+          [ "$REVIEW_ID" = "null" ] && REVIEW_ID=""
+          [ "$BLOCKED_ID" = "null" ] && BLOCKED_ID=""
+          
+          cat > scripts/jira/jira-workflow-config.json << EOF
+          {
+            "lastUpdated": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "sampleIssue": "$SAMPLE_ISSUE",
+            "jiraBaseUrl": "${{ secrets.JIRA_BASE_URL }}",
+            "transitions": $(echo "$TRANSITIONS" | jq 'map({
+              id: .id,
+              name: .name,
+              toStatus: .to.name,
+              toStatusId: .to.id
+            })'),
+            "mappings": {
+              "start": $([ -n "$START_ID" ] && echo "\"$START_ID\"" || echo "null"),
+              "end": $([ -n "$END_ID" ] && echo "\"$END_ID\"" || echo "null"),
+              "inProgress": $([ -n "$START_ID" ] && echo "\"$START_ID\"" || echo "null"),
+              "review": $([ -n "$REVIEW_ID" ] && echo "\"$REVIEW_ID\"" || echo "null"),
+              "blocked": $([ -n "$BLOCKED_ID" ] && echo "\"$BLOCKED_ID\"" || echo "null")
+            }
+          }
+          EOF
+          
+          echo "✅ 설정 파일 생성 완료"
+          echo ""
+          echo "📄 저장된 설정:"
+          cat scripts/jira/jira-workflow-config.json | jq '.'
+
+      - name: Commit and push config
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add scripts/jira/jira-workflow-config.json
+          
+          if git diff --cached --quiet; then
+            echo "⚠️  변경사항 없음"
+          else
+            git commit -m "chore: Update Jira workflow configuration
+
+Configured transitions for issue: ${{ github.event.inputs.sample_issue }}
+- Start: ${{ steps.auto-detect.outputs.start_id }}
+- End: ${{ steps.auto-detect.outputs.end_id }}
+- Review: ${{ steps.auto-detect.outputs.review_id }}
+- Blocked: ${{ steps.auto-detect.outputs.blocked_id }}"
+            
+            git push
+            echo "✅ 설정 파일이 커밋되었습니다!"
+          fi
+
+      - name: Create summary comment
+        uses: actions-cool/issues-helper@v3
+        with:
+          actions: 'create-issue'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: '✅ Jira Workflow 설정 완료'
+          body: |
+            ## 🎉 Jira Workflow 설정이 완료되었습니다!
+            
+            **샘플 이슈**: ${{ github.event.inputs.sample_issue }}
+            **설정 시간**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+            
+            ### 📋 설정된 Transition
+            
+            | 액션 | Transition ID | 상태 |
+            |------|--------------|------|
+            | 작업 시작 | `${{ steps.auto-detect.outputs.start_id }}` | ${{ steps.auto-detect.outputs.start_id != '' && '✅' || '⚠️ 미설정' }} |
+            | 작업 완료 | `${{ steps.auto-detect.outputs.end_id }}` | ${{ steps.auto-detect.outputs.end_id != '' && '✅' || '⚠️ 미설정' }} |
+            | 리뷰 | `${{ steps.auto-detect.outputs.review_id }}` | ${{ steps.auto-detect.outputs.review_id != '' && '✅' || '⚠️ 미설정' }} |
+            | 블로킹 | `${{ steps.auto-detect.outputs.blocked_id }}` | ${{ steps.auto-detect.outputs.blocked_id != '' && '✅' || '⚠️ 미설정' }} |
+            
+            ### 📖 사용 가능한 Transition 목록
+            
+            ```json
+            ${{ steps.fetch-transitions.outputs.transitions }}
+            ```
+            
+            ### 💡 다음 단계
+            
+            - 설정이 올바른지 확인하세요
+            - `npm run issue:start`, `npm run issue:end` 명령어가 이제 이 설정을 사용합니다
+            - 수정이 필요하면 Actions 탭에서 "Setup Jira Workflow"를 다시 실행하세요
+            
+            **설정 파일**: `scripts/jira/jira-workflow-config.json`
+          labels: 'jira,automation,config'
+
