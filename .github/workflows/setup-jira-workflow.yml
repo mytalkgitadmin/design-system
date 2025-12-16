@@ -63,10 +63,10 @@ jobs:
           [ -n "$DONE_ID" ] && echo "  완료: $DONE_ID"
           [ -n "$REVIEW_ID" ] && echo "  리뷰: $REVIEW_ID"
 
-          # 4. Workflow Scheme으로 실제 transition 조회
+          # 4. 샘플 이슈 조회
           echo ""
-          echo "🔍 Workflow Scheme 조회 중..."
-          WORKFLOW_SCHEME=$(curl -s -X GET \
+          echo "🔍 샘플 이슈 조회 중..."
+          SEARCH_RESULT=$(curl -s -X GET \
             -H "Content-Type: application/json" \
             -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
             "${{ secrets.JIRA_BASE_URL }}/rest/api/2/search?jql=project=${PROJECT_KEY}&maxResults=1")
