@@ -1,7 +1,7 @@
 {
-  "lastUpdated": "2025-12-16T23:26:37Z",
+  "lastUpdated": "2025-12-16T23:46:50Z",
   "projectKey": "FMTW",
-  "sampleIssue": "FMTW-1680",
+  "sampleIssue": "FMTW-1682",
   "jiraBaseUrl": "https://bemily.atlassian.net/",
   "transitions": [{"id":"2","name":"Canceled","toStatus":"취소","toStatusId":"10414"},{"id":"11","name":"In Progress","toStatus":"진행 중","toStatusId":"3"},{"id":"21","name":"Open","toStatus":"미해결","toStatusId":"1"},{"id":"31","name":"Done","toStatus":"완료","toStatusId":"10001"},{"id":"41","name":"To Do","toStatus":"해야 할 일","toStatusId":"10000"}],
   "mappings": {
