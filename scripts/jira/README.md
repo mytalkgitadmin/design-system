@@ -6,7 +6,7 @@ GitHub 이슈 생성부터 Jira 연동, 브랜치 생성까지 자동화하는 �
 
 ## ⚙️ 초기 설정
 
-### 개발자 설정 (각자 실행)
+### 1. GitHub CLI 설정 (개발자 개별)
 
 ```bash
 # GitHub CLI 설치 및 로그인
@@ -14,23 +14,42 @@ brew install gh
 gh auth login
 ```
 
-### GitHub Secrets 설정 (관리자만, 1회)
+### 2. .env 파일 설정 (관리자, 1회만)
 
-**Settings** → **Secrets and variables** → **Actions**
+프로젝트 루트에 `.env` 파일을 생성합니다:
 
-| Secret            | 예시                                                                     |
-| ----------------- | ------------------------------------------------------------------------ |
-| `JIRA_BASE_URL`   | `https://your-domain.atlassian.net`                                      |
-| `JIRA_USER_EMAIL` | `admin@company.com`                                                      |
-| `JIRA_API_TOKEN`  | [생성 방법](https://id.atlassian.com/manage-profile/security/api-tokens) |
-| `JIRA_PROJECT`    | `FMTW`                                                                   |
+```bash
+# .env.example을 복사
+cp .env.example .env
+```
+
+`.env` 파일 내용을 실제 Jira 정보로 채웁니다:
+
+```bash
+JIRA_BASE_URL=https://your-domain.atlassian.net
+JIRA_USER_EMAIL=your-email@company.com
+JIRA_API_TOKEN=your-jira-api-token
+JIRA_PROJECT=FMTW
+```
 
 **Jira API 토큰 생성**:
 1. https://id.atlassian.com/manage-profile/security/api-tokens 접속
 2. "Create API token" 클릭
-3. 토큰 이름 입력 (예: `github-actions`)
+3. 토큰 이름 입력 (예: `team-jira-integration`)
 4. 생성된 토큰 복사
-5. GitHub Secrets에 추가
+5. `.env` 파일의 `JIRA_API_TOKEN`에 입력
+
+### 3. .env 파일 커밋 및 공유
+
+**⚠️ Private Repository 확인 필수!**
+
+```bash
+git add .env
+git commit -m "chore: Add .env file for Jira integration"
+git push origin main
+```
+
+> 이제 모든 팀원이 별도 설정 없이 바로 사용 가능합니다!
 
 ---
 
@@ -57,7 +76,12 @@ npm run issue
 3. 브랜치 생성 (`FMTW-123-branch-name`)
 4. Jira에 브랜치 링크 추가
 5. GitHub 이슈 제목 업데이트 (`[FMTW-123] 제목`)
-6. 로컬 브랜치 자동 체크아웃
+
+> 💡 생성된 브랜치는 GitHub Actions가 자동으로 생성하며, 로컬에서 체크아웃:
+> ```bash
+> git fetch origin
+> git checkout -b FMTW-123-branch-name origin/FMTW-123-branch-name
+> ```
 
 ---
 
@@ -71,11 +95,12 @@ npm run issue (이슈 정보 입력)
 GitHub 이슈 생성
     ↓
 GitHub Actions 자동 실행
+    ├─ .env 파일에서 Jira 인증 정보 로드
     ├─ Jira 티켓 생성
-    ├─ 브랜치 생성
+    ├─ 브랜치 생성 (develop 기준)
     └─ 이슈/티켓 연결
     ↓
-로컬 브랜치 자동 체크아웃
+로컬에서 브랜치 체크아웃
     ↓
 작업 시작! 🎉
 ```
@@ -86,15 +111,21 @@ GitHub Actions 자동 실행
 
 ### Jira API 인증 실패 (401)
 
-**원인**: GitHub Secrets 미설정 또는 API 토큰 만료
+**원인**: `.env` 파일 없음 또는 API 토큰 만료
 
 **해결**:
 ```bash
-# 1. 새 API 토큰 생성
-https://id.atlassian.com/manage-profile/security/api-tokens
+# 1. .env 파일 확인
+cat .env
 
-# 2. GitHub Secrets 업데이트 (관리자)
-Settings → Secrets and variables → Actions
+# 2. 새 API 토큰 생성 (필요시)
+# https://id.atlassian.com/manage-profile/security/api-tokens
+
+# 3. .env 파일 업데이트
+vi .env  # JIRA_API_TOKEN 값 업데이트
+git add .env
+git commit -m "chore: Update Jira API token"
+git push origin main
 ```
 
 ### 브랜치를 찾을 수 없음
@@ -153,7 +184,7 @@ scripts/jira/
 ## 💡 새 팀원 온보딩
 
 ```bash
-# 1. 저장소 클론
+# 1. 저장소 클론 (자동으로 .env 포함)
 git clone <repository-url>
 cd design-system
 npm install
@@ -162,11 +193,16 @@ npm install
 brew install gh
 gh auth login
 
-# 3. 테스트
+# 3. .env 파일 확인 (이미 레포지토리에 포함됨)
+cat .env  # Jira 설정 확인
+
+# 4. 테스트
 npm run issue
 ```
 
 **끝! 이게 전부입니다.** ✨
+
+> 💡 `.env` 파일이 레포지토리에 포함되어 있어 별도 설정 필요 없음!
 
 ---
 
