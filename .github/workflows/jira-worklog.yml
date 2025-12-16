@@ -127,20 +127,54 @@ jobs:
             ) | .id' | head -n 1)
           fi
           
-          # 3. Transition 실행
+          # 3. Transition 실행 (다단계 지원)
           if [ -n "$TRANSITION_ID" ] && [ "$TRANSITION_ID" != "null" ]; then
             echo "🔄 Transition 실행: ID=$TRANSITION_ID"
             
-            curl -X POST \
-              -H "Content-Type: application/json" \
-              -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-              -d "{\"transition\": {\"id\": \"${TRANSITION_ID}\"}}" \
-              "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions"
+            # Config 파일에서 목표 상태 찾기
+            TARGET_STATUS=$(jq -r --arg id "$TRANSITION_ID" '.transitions[] | select(.id == $id) | .toStatus' "$CONFIG_FILE")
+            echo "🎯 목표 상태: $TARGET_STATUS"
+            
+            # 다단계 transition (최대 5번)
+            for attempt in $(seq 1 5); do
+              CURRENT_STATUS=$(curl -s -X GET \
+                -H "Content-Type: application/json" \
+                -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+                "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}" | jq -r '.fields.status.name')
+              
+              if [ "$CURRENT_STATUS" = "$TARGET_STATUS" ]; then
+                echo "✅ 목표 상태 도달: $TARGET_STATUS"
+                break
+              fi
+              
+              AVAIL_TRANSITIONS=$(curl -s -X GET \
+                -H "Content-Type: application/json" \
+                -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+                "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions")
+              
+              NEXT_ID=$(echo "$AVAIL_TRANSITIONS" | jq -r --arg target "$TARGET_STATUS" '.transitions[] | select((.to.name | ascii_downcase) == ($target | ascii_downcase)) | .id' | head -n 1)
+              
+              if [ -z "$NEXT_ID" ] || [ "$NEXT_ID" = "null" ]; then
+                NEXT_ID=$(echo "$AVAIL_TRANSITIONS" | jq -r '.transitions[0].id')
+              fi
+              
+              if [ -z "$NEXT_ID" ] || [ "$NEXT_ID" = "null" ]; then
+                break
+              fi
+              
+              curl -s -X POST \
+                -H "Content-Type: application/json" \
+                -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+                -d "{\"transition\": {\"id\": \"${NEXT_ID}\"}}" \
+                "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions" > /dev/null
+              
+              sleep 1
+            done
             
             echo "✅ 상태 변경 완료"
           else
             echo "⚠️  적절한 transition을 찾을 수 없습니다."
-            echo "💡 'npm run jira:setup-workflow'를 실행하여 workflow를 설정하세요."
+            echo "💡 'Setup Jira Workflow'를 실행하여 workflow를 설정하세요."
           fi
           
           # 2. Work Log 추가 (1초만 기록)
@@ -272,20 +306,54 @@ jobs:
             ) | .id' | head -n 1)
           fi
           
-          # Transition 실행
+          # Transition 실행 (다단계 지원)
           if [ -n "$TRANSITION_ID" ] && [ "$TRANSITION_ID" != "null" ]; then
             echo "🔄 Transition 실행: ID=$TRANSITION_ID"
             
-            curl -X POST \
-              -H "Content-Type: application/json" \
-              -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-              -d "{\"transition\": {\"id\": \"${TRANSITION_ID}\"}}" \
-              "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions"
+            # Config 파일에서 목표 상태 찾기
+            TARGET_STATUS=$(jq -r --arg id "$TRANSITION_ID" '.transitions[] | select(.id == $id) | .toStatus' "$CONFIG_FILE")
+            echo "🎯 목표 상태: $TARGET_STATUS"
+            
+            # 다단계 transition (최대 5번)
+            for attempt in $(seq 1 5); do
+              CURRENT_STATUS=$(curl -s -X GET \
+                -H "Content-Type: application/json" \
+                -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+                "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}" | jq -r '.fields.status.name')
+              
+              if [ "$CURRENT_STATUS" = "$TARGET_STATUS" ]; then
+                echo "✅ 목표 상태 도달: $TARGET_STATUS"
+                break
+              fi
+              
+              AVAIL_TRANSITIONS=$(curl -s -X GET \
+                -H "Content-Type: application/json" \
+                -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+                "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions")
+              
+              NEXT_ID=$(echo "$AVAIL_TRANSITIONS" | jq -r --arg target "$TARGET_STATUS" '.transitions[] | select((.to.name | ascii_downcase) == ($target | ascii_downcase)) | .id' | head -n 1)
+              
+              if [ -z "$NEXT_ID" ] || [ "$NEXT_ID" = "null" ]; then
+                NEXT_ID=$(echo "$AVAIL_TRANSITIONS" | jq -r '.transitions[0].id')
+              fi
+              
+              if [ -z "$NEXT_ID" ] || [ "$NEXT_ID" = "null" ]; then
+                break
+              fi
+              
+              curl -s -X POST \
+                -H "Content-Type: application/json" \
+                -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+                -d "{\"transition\": {\"id\": \"${NEXT_ID}\"}}" \
+                "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions" > /dev/null
+              
+              sleep 1
+            done
             
             echo "✅ 상태 변경 완료"
           else
             echo "⚠️  적절한 transition을 찾을 수 없습니다."
-            echo "💡 'npm run jira:setup-workflow'를 실행하여 workflow를 설정하세요."
+            echo "💡 'Setup Jira Workflow'를 실행하여 workflow를 설정하세요."
           fi
           
           echo "work_time=${WORK_HOURS}시간 ${WORK_MINUTES}분" >> $GITHUB_OUTPUT

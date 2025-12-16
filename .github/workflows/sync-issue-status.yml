@@ -113,33 +113,103 @@ jobs:
           echo "skip_update=false" >> $GITHUB_OUTPUT
           echo "✅ 사용할 Transition ID: ${TRANSITION_ID}"
 
-      # 5. Jira 상태 업데이트
-      - name: Update Jira status
+      # 5. Jira 상태 업데이트 (다단계 transition 지원)
+      - name: Update Jira status with multi-step transitions
         if: steps.map-status.outputs.skip_update != 'true' && steps.extract-ticket.outputs.skip != 'true' && steps.load-config.outputs.skip != 'true'
         id: update-status
         run: |
           JIRA_TICKET="${{ steps.extract-ticket.outputs.jira_ticket }}"
-          TRANSITION_ID="${{ steps.map-status.outputs.transition_id }}"
+          TARGET_TRANSITION_ID="${{ steps.map-status.outputs.transition_id }}"
           
           echo "🔄 Jira 상태 업데이트 중..."
           echo "  Ticket: $JIRA_TICKET"
-          echo "  Transition ID: $TRANSITION_ID"
+          echo "  Target Transition ID: $TARGET_TRANSITION_ID"
+          echo ""
           
-          UPDATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-            -H "Content-Type: application/json" \
-            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-            -d "{\"transition\": {\"id\": \"${TRANSITION_ID}\"}}" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions")
+          # Config 파일에서 목표 상태 이름 찾기
+          CONFIG_FILE="scripts/jira/jira-workflow-config.json"
+          TARGET_STATUS=$(jq -r --arg id "$TARGET_TRANSITION_ID" '.transitions[] | select(.id == $id) | .toStatus' "$CONFIG_FILE")
           
-          HTTP_CODE=$(echo "$UPDATE_RESPONSE" | tail -n1)
-          RESPONSE_BODY=$(echo "$UPDATE_RESPONSE" | sed '$d')
+          echo "🎯 목표 상태: $TARGET_STATUS"
+          echo ""
           
-          if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
-            echo "✅ Jira 상태 업데이트 완료"
+          # 다단계 transition 시도 (최대 5번)
+          MAX_ATTEMPTS=5
+          SUCCESS=false
+          
+          for attempt in $(seq 1 $MAX_ATTEMPTS); do
+            echo "📍 시도 $attempt/$MAX_ATTEMPTS"
+            
+            # 현재 상태 조회
+            ISSUE_INFO=$(curl -s -X GET \
+              -H "Content-Type: application/json" \
+              -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+              "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}")
+            
+            CURRENT_STATUS=$(echo "$ISSUE_INFO" | jq -r '.fields.status.name')
+            echo "  현재 상태: $CURRENT_STATUS"
+            
+            # 목표 상태에 도달했는지 확인
+            if [ "$CURRENT_STATUS" = "$TARGET_STATUS" ]; then
+              echo "✅ 목표 상태에 도달했습니다!"
+              SUCCESS=true
+              break
+            fi
+            
+            # 사용 가능한 transitions 조회
+            TRANSITIONS=$(curl -s -X GET \
+              -H "Content-Type: application/json" \
+              -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+              "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions")
+            
+            echo "  사용 가능한 transitions:"
+            echo "$TRANSITIONS" | jq -r '.transitions[] | "    - ID: \(.id) | \(.name) → \(.to.name)"'
+            
+            # 목표 상태로 가는 transition 찾기
+            NEXT_TRANSITION_ID=$(echo "$TRANSITIONS" | jq -r --arg target "$TARGET_STATUS" '.transitions[] | select((.to.name | ascii_downcase) == ($target | ascii_downcase)) | .id' | head -n 1)
+            
+            # 목표 상태로 직접 갈 수 없으면, 첫 번째 가능한 transition 사용
+            if [ -z "$NEXT_TRANSITION_ID" ] || [ "$NEXT_TRANSITION_ID" = "null" ]; then
+              echo "  ⚠️  목표 상태로 직접 갈 수 없습니다. 중간 단계로 이동 시도..."
+              NEXT_TRANSITION_ID=$(echo "$TRANSITIONS" | jq -r '.transitions[0].id')
+              NEXT_STATUS=$(echo "$TRANSITIONS" | jq -r '.transitions[0].to.name')
+              
+              if [ -z "$NEXT_TRANSITION_ID" ] || [ "$NEXT_TRANSITION_ID" = "null" ]; then
+                echo "  ❌ 더 이상 가능한 transition이 없습니다."
+                break
+              fi
+              
+              echo "  → 중간 단계: $NEXT_STATUS (ID: $NEXT_TRANSITION_ID)"
+            else
+              echo "  → 목표 상태로 이동 (ID: $NEXT_TRANSITION_ID)"
+            fi
+            
+            # Transition 실행
+            UPDATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+              -H "Content-Type: application/json" \
+              -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+              -d "{\"transition\": {\"id\": \"${NEXT_TRANSITION_ID}\"}}" \
+              "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions")
+            
+            HTTP_CODE=$(echo "$UPDATE_RESPONSE" | tail -n1)
+            RESPONSE_BODY=$(echo "$UPDATE_RESPONSE" | sed '$d')
+            
+            if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
+              echo "  ✅ Transition 성공"
+            else
+              echo "  ❌ Transition 실패 (HTTP $HTTP_CODE)"
+              echo "$RESPONSE_BODY" | jq '.' || echo "$RESPONSE_BODY"
+              break
+            fi
+            
+            echo ""
+            sleep 1  # API rate limit 방지
+          done
+          
+          if [ "$SUCCESS" = "true" ]; then
             echo "success=true" >> $GITHUB_OUTPUT
           else
-            echo "⚠️  Jira 상태 업데이트 실패 (HTTP $HTTP_CODE)"
-            echo "$RESPONSE_BODY" | jq '.' || echo "$RESPONSE_BODY"
+            echo "⚠️  최대 시도 횟수($MAX_ATTEMPTS)에 도달했거나 실패했습니다."
             echo "success=false" >> $GITHUB_OUTPUT
           fi
 
