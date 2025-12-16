@@ -162,7 +162,7 @@ ${tasksList}`;
     console.log("\n📝 GitHub 이슈를 생성하는 중...");
 
     const escapedBody = body.replace(/"/g, '\\"').replace(/\n/g, "\\n");
-    const command = `gh issue create --title "${answers.title}" --body "${escapedBody}" --label "feat"`;
+    const command = `gh issue create --title "${answers.title}" --body "${escapedBody}"`;
     const issueUrl = executeCommand(command).trim();
 
     console.log("✅ 이슈가 성공적으로 생성되었습니다!");

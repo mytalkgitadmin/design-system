@@ -55,7 +55,7 @@ $description
 # 4. GitHub 이슈 생성
 echo ""
 echo "📝 GitHub 이슈를 생성하는 중..."
-issue_url=$(gh issue create --title "$title" --body "$body" --label "feat")
+issue_url=$(gh issue create --title "$title" --body "$body")
 
 echo "✅ 이슈가 성공적으로 생성되었습니다!"
 echo "🔗 $issue_url"
