@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 코드 체크아웃 (이슈 템플릿 파싱용)
+      # 1. 코드 체크아웃
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -21,15 +21,15 @@ jobs:
         id: issue-parser
         run: |
           BODY="${{ github.event.issue.body }}"
-          
-          # parentKey 추출
-          PARENT_KEY=$(echo "$BODY" | grep -A 1 "🎟️ 상위 작업" | tail -n 1 | xargs)
+
+          # parentKey 추출 (### 🎟️ 상위 작업 다음 줄)
+          PARENT_KEY=$(echo "$BODY" | sed -n '/### 🎟️ 상위 작업/,/###/p' | sed '1d;$d' | xargs)
           echo "issueparser_parentKey=${PARENT_KEY}" >> $GITHUB_OUTPUT
-          
-          # branch 추출
-          BRANCH=$(echo "$BODY" | grep -A 1 "🌳 브랜치명" | tail -n 1 | xargs)
+
+          # branch 추출 (### 🌳 브랜치명 다음 줄)
+          BRANCH=$(echo "$BODY" | sed -n '/### 🌳 브랜치명/,/###/p' | sed '1d;$d' | xargs)
           echo "issueparser_branch=${BRANCH}" >> $GITHUB_OUTPUT
-          
+
           echo "✅ Parsed - Parent: ${PARENT_KEY}, Branch: ${BRANCH}"
 
       # 3. 마크다운을 Jira 문법으로 변환
@@ -61,7 +61,7 @@ jobs:
           issuetype: Task
           summary: "${{ github.event.issue.title }}"
           description: "${{ steps.md2jira.outputs.output-text }}"
-      
+
       # 5-1. Parent 티켓 연결 (선택사항)
       - name: Link to parent issue
         if: steps.issue-parser.outputs.issueparser_parentKey != ''
@@ -69,14 +69,23 @@ jobs:
         run: |
           PARENT_KEY="${{ steps.issue-parser.outputs.issueparser_parentKey }}"
           ISSUE_KEY="${{ steps.create-jira.outputs.issue }}"
-          
-          if [ -n "$PARENT_KEY" ]; then
+
+          if [ -n "$PARENT_KEY" ] && [ "$PARENT_KEY" != "null" ]; then
             echo "🔗 Linking to parent: $PARENT_KEY"
-            curl -X POST \
+            
+            # Jira REST API로 parent 설정
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
               -H "Content-Type: application/json" \
               -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-              -d "{\"update\":{\"parent\":[{\"set\":{\"key\":\"${PARENT_KEY}\"}}]}}" \
-              "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${ISSUE_KEY}"
+              -d "{\"fields\":{\"parent\":{\"key\":\"${PARENT_KEY}\"}}}" \
+              "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${ISSUE_KEY}")
+            
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
+            if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Successfully linked to parent: $PARENT_KEY"
+            else
+              echo "⚠️  Failed to link parent (HTTP $HTTP_CODE). Task created without parent."
+            fi
           fi
 
       # 6. 생성된 Jira 이슈 정보 로그
@@ -103,8 +112,13 @@ jobs:
         id: create-branch
         run: |
           ISSUE_NUMBER="${{ steps.create-jira.outputs.issue }}"
-          ISSUE_TITLE="${{ steps.issue-parser.outputs.issueparser_branch }}"
-          BRANCH_NAME="${ISSUE_NUMBER}-$(echo "${ISSUE_TITLE}" | sed 's/ /-/g' | sed 's/[^a-zA-Z0-9-]//g')"
+          BRANCH_NAME_RAW="${{ steps.issue-parser.outputs.issueparser_branch }}"
+
+          # 브랜치명 정제 (공백을 하이픈으로, 특수문자 제거)
+          BRANCH_NAME_CLEAN=$(echo "${BRANCH_NAME_RAW}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/-\+/-/g' | sed 's/^-//;s/-$//')
+
+          # 최종 브랜치명
+          BRANCH_NAME="${ISSUE_NUMBER}-${BRANCH_NAME_CLEAN}"
 
           echo "branch_name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
 
@@ -134,7 +148,24 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           title: "[${{ steps.create-jira.outputs.issue }}] ${{ github.event.issue.title }}"
 
-      # 12. GitHub 이슈에 Jira 링크 코멘트 추가
+      # 12. GitHub 이슈 본문을 템플릿 형식으로 업데이트
+      - name: Update GitHub issue body
+        uses: actions-cool/issues-helper@v3
+        with:
+          actions: "update-issue"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            ## 📋 이슈 정보
+
+            **Jira Ticket:** [${{ steps.create-jira.outputs.issue }}](${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.create-jira.outputs.issue }})
+            **Branch:** `${{ steps.create-branch.outputs.branch_name }}`
+            **Parent Ticket:** `${{ steps.issue-parser.outputs.issueparser_parentKey }}`
+
+            ---
+
+            ${{ github.event.issue.body }}
+
+      # 13. GitHub 이슈에 Jira 링크 코멘트 추가
       - name: Add Jira link to GitHub issue
         uses: actions-cool/issues-helper@v3
         with:
@@ -146,13 +177,15 @@ jobs:
 
             **Jira Ticket:** [${{ steps.create-jira.outputs.issue }}](${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.create-jira.outputs.issue }})
             **Branch:** `${{ steps.create-branch.outputs.branch_name }}`
+            **Parent:** ${{ steps.issue-parser.outputs.issueparser_parentKey }}
 
             ### 🚀 Next Steps
-            1. `git fetch origin`
-            2. `git checkout -b ${{ steps.create-branch.outputs.branch_name }} origin/${{ steps.create-branch.outputs.branch_name }}`
-            3. Start coding!
+            ```bash
+            git fetch origin
+            git checkout -b ${{ steps.create-branch.outputs.branch_name }} origin/${{ steps.create-branch.outputs.branch_name }}
+            ```
 
-      # 13. 에러 처리 - 실패 시 GitHub 이슈에 코멘트
+      # 14. 에러 처리 - 실패 시 GitHub 이슈에 코멘트
       - name: Comment on failure
         if: failure()
         uses: actions-cool/issues-helper@v3
@@ -177,8 +210,3 @@ jobs:
 
             3. **워크플로우 로그 확인**
                - [Actions 탭](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})에서 상세 로그 확인
-
-            ### 🔧 설정 방법
-            ```bash
-            npm run jira:setup
-            ```
