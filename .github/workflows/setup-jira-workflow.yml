@@ -181,14 +181,18 @@ jobs:
           if git diff --cached --quiet; then
             echo "⚠️  변경사항 없음"
           else
-            git commit -m "chore: Update Jira workflow configuration
-
-Configured transitions for issue: ${{ github.event.inputs.sample_issue }}
-- Start: ${{ steps.auto-detect.outputs.start_id }}
-- End: ${{ steps.auto-detect.outputs.end_id }}
-- Review: ${{ steps.auto-detect.outputs.review_id }}
-- Blocked: ${{ steps.auto-detect.outputs.blocked_id }}"
+            COMMIT_MSG=$(cat <<EOF
+          chore: Update Jira workflow configuration
+          
+          Configured transitions for issue: ${{ github.event.inputs.sample_issue }}
+          - Start: ${{ steps.auto-detect.outputs.start_id }}
+          - End: ${{ steps.auto-detect.outputs.end_id }}
+          - Review: ${{ steps.auto-detect.outputs.review_id }}
+          - Blocked: ${{ steps.auto-detect.outputs.blocked_id }}
+          EOF
+          )
             
+            git commit -m "$COMMIT_MSG"
             git push
             echo "✅ 설정 파일이 커밋되었습니다!"
           fi
