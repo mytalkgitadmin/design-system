@@ -12,6 +12,7 @@
     "@vanilla-extract/vite-plugin": "^5.1.3",
     "@vitest/browser-playwright": "^4.0.15",
     "@vitest/coverage-v8": "^4.0.15",
+    "chromatic": "^13.3.4",
     "playwright": "^1.57.0",
     "storybook": "^10.1.7",
     "style-dictionary": "^5.1.1",
@@ -24,7 +25,12 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "build:tokens": "node scripts/build-tokens.js"
+    "build:tokens": "node scripts/build-tokens.js",
+    "chromatic": "npx chromatic --project-token=chpt_a7a4f2b4972968e",
+    "issue": "node scripts/jira/create-issue.js",
+    "issue:sh": "bash scripts/jira/create-issue.sh",
+    "issue:start": "node scripts/jira/start-work.js",
+    "issue:end": "node scripts/jira/end-work.js"
   },
   "repository": {
     "type": "git",
@@ -43,6 +49,7 @@
     "@vanilla-extract/css": "^1.17.5",
     "@vanilla-extract/dynamic": "^2.1.5",
     "@vanilla-extract/recipes": "^0.5.7",
+    "dotenv": "^17.2.3",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   }
