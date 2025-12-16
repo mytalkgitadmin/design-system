@@ -21,9 +21,9 @@ npm run storybook
 gh auth login
 ```
 
-#### 2. .env 파일 생성
+#### 2. .env 파일 생성 (로컬 개발용)
 
-프로젝트 루트에 `.env` 파일을 생성하고 팀에서 공유받은 Jira 정보를 입력하세요:
+프로젝트 루트에 `.env` 파일을 생성하고 Jira 정보를 입력하세요:
 
 ```bash
 # .env 파일 생성
@@ -39,21 +39,24 @@ JIRA_API_TOKEN=your-jira-api-token
 JIRA_PROJECT=FMTW
 ```
 
-> 💡 **보안 주의**: `.env` 파일은 팀 내부에서만 공유하고, 절대 public 레포지토리에 커밋하지 마세요!
+> 💡 **보안**: `.env` 파일은 git에 커밋하지 않습니다 (`.gitignore`에 포함됨)
 >
 > 💡 Jira API 토큰 생성: https://id.atlassian.com/manage-profile/security/api-tokens
 
-#### 3. .env 파일 커밋 (팀 전체 공유)
+#### 3. GitHub Secrets 설정 (관리자, 최초 1회)
 
-**⚠️ Private Repository에서만 사용하세요!**
+GitHub Actions가 자동으로 Jira 연동하려면 Secrets 설정이 필요합니다:
 
-```bash
-git add .env
-git commit -m "chore: Add .env file for Jira integration"
-git push origin main
-```
+**Settings** → **Secrets and variables** → **Actions**
 
-> 이제 모든 팀원이 별도 설정 없이 바로 사용할 수 있습니다!
+| Secret Name       | 설명             | 예시                                |
+| ----------------- | ---------------- | ----------------------------------- |
+| `JIRA_BASE_URL`   | Jira URL         | `https://your-domain.atlassian.net` |
+| `JIRA_USER_EMAIL` | Jira 이메일      | `your-email@company.com`            |
+| `JIRA_API_TOKEN`  | Jira API 토큰    | `your-jira-api-token`               |
+| `JIRA_PROJECT`    | Jira 프로젝트 키 | `FMTW`                              |
+
+> 💡 **Secrets는 관리자가 한 번만 설정하면, 모든 팀원이 사용할 수 있습니다**
 
 ### 이슈 생성
 

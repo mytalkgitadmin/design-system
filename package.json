@@ -28,7 +28,8 @@
     "issue": "node scripts/jira/create-issue.js",
     "issue:sh": "bash scripts/jira/create-issue.sh",
     "issue:start": "node scripts/jira/start-work.js",
-    "issue:end": "node scripts/jira/end-work.js"
+    "issue:end": "node scripts/jira/end-work.js",
+    "setup:labels": "bash scripts/jira/setup-github-labels.sh"
   },
   "repository": {
     "type": "git",
