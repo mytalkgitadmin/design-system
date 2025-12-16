@@ -16,7 +16,25 @@ jobs:
         with:
           ref: main
 
-      # 2. 이슈 파싱 (마크다운에서 직접 추출)
+      # 2. .env 파일 로드 확인
+      - name: Check .env file
+        run: |
+          if [ ! -f .env ]; then
+            echo "❌ .env 파일이 없습니다!"
+            echo "📝 .env.example을 참고하여 .env 파일을 생성하고 커밋해주세요."
+            exit 1
+          fi
+
+          echo "✅ .env 파일 확인 완료"
+
+          # 필수 환경변수 체크
+          source .env
+          if [ -z "$JIRA_BASE_URL" ] || [ -z "$JIRA_USER_EMAIL" ] || [ -z "$JIRA_API_TOKEN" ]; then
+            echo "❌ .env 파일에 필수 값이 누락되었습니다!"
+            exit 1
+          fi
+
+      # 3. 이슈 파싱 (마크다운에서 직접 추출)
       - name: Parse GitHub Issue
         id: issue-parser
         run: |
@@ -32,7 +50,7 @@ jobs:
 
           echo "✅ Parsed - Parent: ${PARENT_KEY}, Branch: ${BRANCH}"
 
-      # 3. 마크다운을 Jira 문법으로 변환
+      # 4. 마크다운을 Jira 문법으로 변환
       - name: Convert markdown to Jira syntax
         uses: peter-evans/jira2md@v1
         id: md2jira
@@ -44,29 +62,40 @@ jobs:
             ${{ github.event.issue.body }}
           mode: md2jira
 
-      # 4. Jira 로그인
+      # 5. Jira 환경변수 로드
+      - name: Load Jira credentials
+        id: jira-env
+        run: |
+          source .env
+          echo "JIRA_BASE_URL=${JIRA_BASE_URL}" >> $GITHUB_ENV
+          echo "JIRA_USER_EMAIL=${JIRA_USER_EMAIL}" >> $GITHUB_ENV
+          echo "JIRA_API_TOKEN=${JIRA_API_TOKEN}" >> $GITHUB_ENV
+          echo "JIRA_PROJECT=${JIRA_PROJECT:-FMTW}" >> $GITHUB_ENV
+
+      # 6. Jira 로그인
       - name: Login to Jira
         uses: atlassian/gajira-login@v3
         env:
-          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
-          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
-          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_BASE_URL: ${{ env.JIRA_BASE_URL }}
+          JIRA_API_TOKEN: ${{ env.JIRA_API_TOKEN }}
+          JIRA_USER_EMAIL: ${{ env.JIRA_USER_EMAIL }}
 
-      # 5. Jira 이슈 생성 (parent 없이)
+      # 7. Jira 이슈 생성 (parent 없이)
       - name: Create Jira Issue
         id: create-jira
         uses: atlassian/gajira-create@v3
         with:
-          project: ${{ secrets.JIRA_PROJECT || 'FMTW' }}
+          project: ${{ env.JIRA_PROJECT }}
           issuetype: Task
           summary: "${{ github.event.issue.title }}"
           description: "${{ steps.md2jira.outputs.output-text }}"
 
-      # 5-1. Parent 티켓 연결 (선택사항)
+      # 8. Parent 티켓 연결 (선택사항)
       - name: Link to parent issue
         if: steps.issue-parser.outputs.issueparser_parentKey != ''
         continue-on-error: true
         run: |
+          source .env
           PARENT_KEY="${{ steps.issue-parser.outputs.issueparser_parentKey }}"
           ISSUE_KEY="${{ steps.create-jira.outputs.issue }}"
 
@@ -76,9 +105,9 @@ jobs:
             # Jira REST API로 parent 설정
             RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
               -H "Content-Type: application/json" \
-              -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+              -u "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
               -d "{\"fields\":{\"parent\":{\"key\":\"${PARENT_KEY}\"}}}" \
-              "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${ISSUE_KEY}")
+              "${JIRA_BASE_URL}/rest/api/2/issue/${ISSUE_KEY}")
             
             HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
             if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
@@ -88,26 +117,27 @@ jobs:
             fi
           fi
 
-      # 6. 생성된 Jira 이슈 정보 로그
+      # 9. 생성된 Jira 이슈 정보 로그
       - name: Log created Jira issue
         run: |
+          source .env
           echo "✅ Jira Issue Created: ${{ steps.create-jira.outputs.issue }}"
-          echo "🔗 Issue URL: ${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.create-jira.outputs.issue }}"
+          echo "🔗 Issue URL: ${JIRA_BASE_URL}/browse/${{ steps.create-jira.outputs.issue }}"
 
-      # 7. develop 브랜치로 체크아웃
+      # 10. develop 브랜치로 체크아웃
       - name: Checkout develop branch
         uses: actions/checkout@v4
         with:
           ref: develop
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # 8. Git 설정
+      # 11. Git 설정
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      # 9. 브랜치 생성 및 푸시
+      # 12. 브랜치 생성 및 푸시
       - name: Create and push branch
         id: create-branch
         run: |
@@ -127,20 +157,21 @@ jobs:
 
           echo "✅ Branch created: ${BRANCH_NAME}"
 
-      # 10. Jira에 브랜치 링크 코멘트 추가
+      # 13. Jira에 브랜치 링크 코멘트 추가
       - name: Add branch link to Jira
         run: |
+          source .env
           BRANCH_NAME="${{ steps.create-branch.outputs.branch_name }}"
           ISSUE_NUMBER="${{ steps.create-jira.outputs.issue }}"
           BRANCH_URL="${{ github.server_url }}/${{ github.repository }}/tree/${BRANCH_NAME}"
 
           curl -X POST \
             -H "Content-Type: application/json" \
-            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -u "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
             -d "{\"body\": \"🌿 Branch created: [${BRANCH_NAME}|${BRANCH_URL}]\"}" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${ISSUE_NUMBER}/comment"
+            "${JIRA_BASE_URL}/rest/api/2/issue/${ISSUE_NUMBER}/comment"
 
-      # 11. GitHub 이슈 제목 업데이트
+      # 14. GitHub 이슈 제목 업데이트
       - name: Update GitHub issue title
         uses: actions-cool/issues-helper@v3
         with:
@@ -148,7 +179,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           title: "[${{ steps.create-jira.outputs.issue }}] ${{ github.event.issue.title }}"
 
-      # 12. GitHub 이슈 본문을 템플릿 형식으로 업데이트
+      # 15. GitHub 이슈 본문을 템플릿 형식으로 업데이트
       - name: Update GitHub issue body
         uses: actions-cool/issues-helper@v3
         with:
@@ -157,7 +188,7 @@ jobs:
           body: |
             ## 📋 이슈 정보
 
-            **Jira Ticket:** [${{ steps.create-jira.outputs.issue }}](${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.create-jira.outputs.issue }})
+            **Jira Ticket:** [${{ steps.create-jira.outputs.issue }}](${{ env.JIRA_BASE_URL }}/browse/${{ steps.create-jira.outputs.issue }})
             **Branch:** `${{ steps.create-branch.outputs.branch_name }}`
             **Parent Ticket:** `${{ steps.issue-parser.outputs.issueparser_parentKey }}`
 
@@ -165,7 +196,7 @@ jobs:
 
             ${{ github.event.issue.body }}
 
-      # 13. GitHub 이슈에 Jira 링크 코멘트 추가
+      # 16. GitHub 이슈에 Jira 링크 코멘트 추가
       - name: Add Jira link to GitHub issue
         uses: actions-cool/issues-helper@v3
         with:
@@ -175,7 +206,7 @@ jobs:
           body: |
             ## ✅ Jira Issue Created
 
-            **Jira Ticket:** [${{ steps.create-jira.outputs.issue }}](${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.create-jira.outputs.issue }})
+            **Jira Ticket:** [${{ steps.create-jira.outputs.issue }}](${{ env.JIRA_BASE_URL }}/browse/${{ steps.create-jira.outputs.issue }})
             **Branch:** `${{ steps.create-branch.outputs.branch_name }}`
             **Parent:** ${{ steps.issue-parser.outputs.issueparser_parentKey }}
 
@@ -185,7 +216,7 @@ jobs:
             git checkout -b ${{ steps.create-branch.outputs.branch_name }} origin/${{ steps.create-branch.outputs.branch_name }}
             ```
 
-      # 14. 에러 처리 - 실패 시 GitHub 이슈에 코멘트
+      # 17. 에러 처리 - 실패 시 GitHub 이슈에 코멘트
       - name: Comment on failure
         if: failure()
         uses: actions-cool/issues-helper@v3
@@ -198,11 +229,10 @@ jobs:
 
             워크플로우 실행에 실패했습니다. 다음을 확인해주세요:
 
-            1. **GitHub Secrets 설정 확인**
-               - `JIRA_BASE_URL`
-               - `JIRA_USER_EMAIL`
-               - `JIRA_API_TOKEN`
-               - `JIRA_PROJECT`
+            1. **.env 파일 확인**
+               - `.env` 파일이 레포지토리에 커밋되어 있는지 확인
+               - 필수 값들이 모두 입력되어 있는지 확인
+               - `JIRA_BASE_URL`, `JIRA_USER_EMAIL`, `JIRA_API_TOKEN`, `JIRA_PROJECT`
 
             2. **Jira 권한 확인**
                - API 토큰이 유효한지

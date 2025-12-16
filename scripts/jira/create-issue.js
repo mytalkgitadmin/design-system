@@ -115,7 +115,8 @@ ${tasksList}`;
     console.log("   1. GitHub 이슈에서 Jira 티켓 번호 확인 (약 30초 소요)");
     console.log("   2. git fetch origin");
     console.log("   3. git checkout -b <JIRA-XXX-branch-name> origin/<JIRA-XXX-branch-name>");
-    console.log("   4. 코드 작업 시작!\n");
+    console.log("   4. npm run issue:start (작업 시작 기록)");
+    console.log("   5. 코드 작업 시작!\n");
 
   } catch (error) {
     console.error("\n❌ 오류 발생:", error.message);

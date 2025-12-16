@@ -26,7 +26,9 @@
     "build-storybook": "storybook build",
     "chromatic": "npx chromatic --project-token=chpt_a7a4f2b4972968e",
     "issue": "node scripts/jira/create-issue.js",
-    "issue:sh": "bash scripts/jira/create-issue.sh"
+    "issue:sh": "bash scripts/jira/create-issue.sh",
+    "issue:start": "node scripts/jira/start-work.js",
+    "issue:end": "node scripts/jira/end-work.js"
   },
   "repository": {
     "type": "git",
@@ -45,6 +47,7 @@
     "@vanilla-extract/css": "^1.17.5",
     "@vanilla-extract/dynamic": "^2.1.5",
     "@vanilla-extract/recipes": "^0.5.7",
+    "dotenv": "^17.2.3",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   }
