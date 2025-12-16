@@ -133,9 +133,9 @@ jobs:
           echo "📋 사용 가능한 Transition 목록:"
           echo "$TRANSITIONS" | jq -r '.transitions[] | "  ID: \(.id) | \(.name) → \(.to.name)"'
 
-          # transitions 데이터를 output으로 저장
+          # transitions 데이터를 output으로 저장 (배열만 추출)
           echo "transitions<<EOF" >> $GITHUB_OUTPUT
-          echo "$TRANSITIONS"
+          echo "$TRANSITIONS" | jq '.transitions'
           echo "EOF" >> $GITHUB_OUTPUT
 
           echo "sample_issue=$SAMPLE_ISSUE" >> $GITHUB_OUTPUT
