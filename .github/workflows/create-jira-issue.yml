@@ -24,13 +24,21 @@ jobs:
 
           # parentKey 추출 (### 🎟️ 상위 작업 다음 줄)
           PARENT_KEY=$(echo "$BODY" | sed -n '/### 🎟️ 상위 작업/,/###/p' | sed '1d;$d' | xargs)
-          echo "issueparser_parentKey=${PARENT_KEY}" >> $GITHUB_OUTPUT
+          {
+            echo "issueparser_parentKey<<EOF"
+            echo "$PARENT_KEY"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
           # branch 추출 (### 🌳 브랜치명 다음 줄)
           BRANCH=$(echo "$BODY" | sed -n '/### 🌳 브랜치명/,/###/p' | sed '1d;$d' | xargs)
-          echo "issueparser_branch=${BRANCH}" >> $GITHUB_OUTPUT
+          {
+            echo "issueparser_branch<<EOF"
+            echo "$BRANCH"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
-          echo "✅ Parsed - Parent: ${PARENT_KEY}, Branch: ${BRANCH}"
+          echo "✅ Parsed - Parent: $PARENT_KEY, Branch: $BRANCH"
 
       # 3. 마크다운을 Jira 문법으로 변환
       - name: Convert markdown to Jira syntax
