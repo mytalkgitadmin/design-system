@@ -3,24 +3,20 @@ name: Setup Jira Workflow
 on:
   workflow_dispatch:
     inputs:
-      sample_issue:
-        description: '샘플 Jira 티켓 번호 (예: FMTW-1)'
-        required: true
-        type: string
       start_transition:
-        description: '작업 시작 Transition ID (조회 후 입력)'
+        description: '작업 시작 Transition ID (비워두면 자동 탐지)'
         required: false
         type: string
       end_transition:
-        description: '작업 완료 Transition ID (조회 후 입력)'
+        description: '작업 완료 Transition ID (비워두면 자동 탐지)'
         required: false
         type: string
       review_transition:
-        description: '리뷰 Transition ID (선택사항)'
+        description: '리뷰 Transition ID (선택사항, 비워두면 자동 탐지)'
         required: false
         type: string
       blocked_transition:
-        description: '블로킹 Transition ID (선택사항)'
+        description: '블로킹 Transition ID (선택사항, 비워두면 자동 탐지)'
         required: false
         type: string
 
@@ -35,32 +31,72 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Fetch Jira transitions
+      - name: Fetch Jira workflow from project
         id: fetch-transitions
         run: |
-          SAMPLE_ISSUE="${{ github.event.inputs.sample_issue }}"
+          PROJECT_KEY="${{ secrets.JIRA_PROJECT }}"
           
-          echo "🔍 ${SAMPLE_ISSUE}의 transition 조회 중..."
+          echo "🔍 프로젝트 ${PROJECT_KEY}의 워크플로우 조회 중..."
           
-          RESPONSE=$(curl -s -X GET \
+          # 프로젝트의 모든 상태 조회
+          STATUSES=$(curl -s -X GET \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/project/${PROJECT_KEY}/statuses")
+          
+          # 에러 체크
+          if echo "$STATUSES" | jq -e '.errorMessages' > /dev/null 2>&1; then
+            echo "❌ Jira API 에러:"
+            echo "$STATUSES" | jq -r '.errorMessages[]'
+            exit 1
+          fi
+          
+          # Task 타입의 상태들 추출 (가장 일반적)
+          TASK_STATUSES=$(echo "$STATUSES" | jq '[.[] | select(.name == "Task" or .name == "작업" or .id == "10001") | .statuses[]] | unique')
+          
+          # 상태가 없으면 첫 번째 issue type 사용
+          if [ "$TASK_STATUSES" = "[]" ] || [ "$TASK_STATUSES" = "null" ]; then
+            echo "⚠️  Task 타입을 찾을 수 없습니다. 첫 번째 issue type 사용..."
+            TASK_STATUSES=$(echo "$STATUSES" | jq '[.[0].statuses[]] | unique')
+          fi
+          
+          echo "📋 사용 가능한 상태 목록:"
+          echo "$TASK_STATUSES" | jq -r '.[] | "  \(.name) (ID: \(.id))"'
+          
+          # 샘플 이슈로 실제 transition 조회 (상태 ID를 알기 위함)
+          # 프로젝트에서 최근 이슈 하나 가져오기
+          echo ""
+          echo "🔍 실제 transition 조회를 위해 샘플 이슈 검색 중..."
+          SEARCH_RESULT=$(curl -s -X GET \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/search?jql=project=${PROJECT_KEY}&maxResults=1")
+          
+          SAMPLE_ISSUE=$(echo "$SEARCH_RESULT" | jq -r '.issues[0].key')
+          
+          if [ -z "$SAMPLE_ISSUE" ] || [ "$SAMPLE_ISSUE" = "null" ]; then
+            echo "❌ 프로젝트에 이슈가 없습니다. 이슈를 하나 생성해주세요."
+            exit 1
+          fi
+          
+          echo "✅ 샘플 이슈 발견: $SAMPLE_ISSUE"
+          echo ""
+          
+          # 실제 transition 조회
+          TRANSITIONS=$(curl -s -X GET \
             -H "Content-Type: application/json" \
             -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
             "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${SAMPLE_ISSUE}/transitions")
           
-          # 에러 체크
-          if echo "$RESPONSE" | jq -e '.errorMessages' > /dev/null 2>&1; then
-            echo "❌ Jira API 에러:"
-            echo "$RESPONSE" | jq -r '.errorMessages[]'
-            exit 1
-          fi
-          
           echo "📋 사용 가능한 Transition 목록:"
-          echo "$RESPONSE" | jq -r '.transitions[] | "  ID: \(.id) | \(.name) → \(.to.name)"'
+          echo "$TRANSITIONS" | jq -r '.transitions[] | "  ID: \(.id) | \(.name) → \(.to.name)"'
           
           # transitions 데이터를 output으로 저장
           echo "transitions<<EOF" >> $GITHUB_OUTPUT
-          echo "$RESPONSE" | jq '.transitions'
+          echo "$TRANSITIONS" | jq '.transitions'
           echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "sample_issue=$SAMPLE_ISSUE" >> $GITHUB_OUTPUT
 
       - name: Auto-detect transitions if not provided
         id: auto-detect
@@ -132,7 +168,8 @@ jobs:
 
       - name: Create workflow config file
         run: |
-          SAMPLE_ISSUE="${{ github.event.inputs.sample_issue }}"
+          SAMPLE_ISSUE="${{ steps.fetch-transitions.outputs.sample_issue }}"
+          PROJECT_KEY="${{ secrets.JIRA_PROJECT }}"
           TRANSITIONS='${{ steps.fetch-transitions.outputs.transitions }}'
           START_ID="${{ steps.auto-detect.outputs.start_id }}"
           END_ID="${{ steps.auto-detect.outputs.end_id }}"
@@ -148,6 +185,7 @@ jobs:
           cat > scripts/jira/jira-workflow-config.json << EOF
           {
             "lastUpdated": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "projectKey": "$PROJECT_KEY",
             "sampleIssue": "$SAMPLE_ISSUE",
             "jiraBaseUrl": "${{ secrets.JIRA_BASE_URL }}",
             "transitions": $(echo "$TRANSITIONS" | jq 'map({
@@ -184,7 +222,10 @@ jobs:
             COMMIT_MSG=$(cat <<EOF
           chore: Update Jira workflow configuration
           
-          Configured transitions for issue: ${{ github.event.inputs.sample_issue }}
+          Project: ${{ secrets.JIRA_PROJECT }}
+          Sample issue: ${{ steps.fetch-transitions.outputs.sample_issue }}
+          
+          Configured transitions:
           - Start: ${{ steps.auto-detect.outputs.start_id }}
           - End: ${{ steps.auto-detect.outputs.end_id }}
           - Review: ${{ steps.auto-detect.outputs.review_id }}
@@ -206,7 +247,8 @@ jobs:
           body: |
             ## 🎉 Jira Workflow 설정이 완료되었습니다!
             
-            **샘플 이슈**: ${{ github.event.inputs.sample_issue }}
+            **프로젝트**: ${{ secrets.JIRA_PROJECT }}
+            **샘플 이슈**: ${{ steps.fetch-transitions.outputs.sample_issue }}
             **설정 시간**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
             
             ### 📋 설정된 Transition
