@@ -161,9 +161,15 @@ ${tasksList}`;
     // 3. GitHub 이슈 생성
     console.log("\n📝 GitHub 이슈를 생성하는 중...");
 
-    const escapedBody = body.replace(/"/g, '\\"').replace(/\n/g, "\\n");
-    const command = `gh issue create --title "${answers.title}" --body "${escapedBody}"`;
+    // body를 파일로 저장해서 사용 (특수문자 escape 문제 해결)
+    const tempBodyFile = path.join(__dirname, ".temp-issue-body.md");
+    fs.writeFileSync(tempBodyFile, body);
+
+    const command = `gh issue create --title "${answers.title}" --body-file "${tempBodyFile}"`;
     const issueUrl = executeCommand(command).trim();
+
+    // 임시 파일 삭제
+    fs.unlinkSync(tempBodyFile);
 
     console.log("✅ 이슈가 성공적으로 생성되었습니다!");
     console.log(`🔗 ${issueUrl}`);

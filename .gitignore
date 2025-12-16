@@ -42,3 +42,4 @@ tmp/
 
 *storybook.log
 storybook-static
+scripts/jira/.temp-issue-body.md
