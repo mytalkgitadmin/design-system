@@ -10,7 +10,7 @@ body:
       placeholder: "FMTW-1660"
       value: "FMTW-1660"
     validations:
-      required: false
+      required: true
 
   - type: input
     id: branch
