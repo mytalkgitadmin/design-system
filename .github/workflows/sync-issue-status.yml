@@ -85,8 +85,12 @@ jobs:
           # 라벨에 따라 transition ID 선택
           TRANSITION_ID=""
           COMMENT=""
+          IS_REOPENED="${{ github.event.action == 'reopened' }}"
 
-          if [ "$IS_CLOSED" = "true" ]; then
+          if [ "$IS_REOPENED" = "true" ]; then
+            TRANSITION_ID="$START_ID"
+            COMMENT="🔄 Issue가 다시 열렸습니다 - 작업 재개"
+          elif [ "$IS_CLOSED" = "true" ]; then
             TRANSITION_ID="$END_ID"
             COMMENT="✅ 작업 완료 (GitHub Issue가 닫혔습니다)"
           elif echo "$LABELS" | grep -q "in progress"; then

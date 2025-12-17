@@ -211,7 +211,11 @@ jobs:
           echo "⏱️  작업 시간: ${WORK_HOURS}시간 ${WORK_MINUTES}분 (${WORK_SECONDS}초)"
 
           # 2. Work Log 추가
-          curl -X POST \
+          echo "📝 Work Log 요청 데이터:"
+          echo "  - Started: ${START_TIME}"
+          echo "  - Time Spent: ${WORK_SECONDS}초 (${WORK_HOURS}h ${WORK_MINUTES}m)"
+
+          WORKLOG_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             -H "Content-Type: application/json" \
             -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
             -d "{
@@ -219,41 +223,29 @@ jobs:
               \"started\": \"${START_TIME}\",
               \"timeSpentSeconds\": ${WORK_SECONDS}
             }" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/worklog"
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/worklog")
 
-          echo "✅ Work Log 추가 완료"
+          HTTP_CODE=$(echo "$WORKLOG_RESPONSE" | tail -n1)
+          RESPONSE_BODY=$(echo "$WORKLOG_RESPONSE" | sed '$d')
 
-          # 3. 상태를 "Done"으로 변경
-          CONFIG_FILE="scripts/jira/jira-workflow-config.json"
-
-          if [ -f "$CONFIG_FILE" ]; then
-            TRANSITION_ID=$(jq -r '.mappings.end // empty' "$CONFIG_FILE")
-            
-            if [ -n "$TRANSITION_ID" ] && [ "$TRANSITION_ID" != "null" ]; then
-              echo "✅ 설정된 Transition ID: $TRANSITION_ID"
-            else
-              echo "❌ Config 파일에 end transition ID가 없습니다!"
-              echo "💡 scripts/jira/jira-workflow-config.json 파일을 확인하세요."
-              exit 1
-            fi
+          if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Work Log 추가 완료 (HTTP $HTTP_CODE)"
           else
-            echo "❌ Config 파일이 없습니다: $CONFIG_FILE"
-            echo "💡 scripts/jira/jira-workflow-config.json 파일을 생성하세요."
-            exit 1
+            echo "❌ Work Log 추가 실패 (HTTP $HTTP_CODE)"
+            echo "응답: $RESPONSE_BODY"
           fi
 
-          # Transition 실행
-          echo "🔄 Transition 실행: ID=$TRANSITION_ID"
-
-          curl -s -X POST \
-            -H "Content-Type: application/json" \
-            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-            -d "{\"transition\": {\"id\": \"${TRANSITION_ID}\"}}" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions"
-
-          echo "✅ 상태 변경 완료"
-
           echo "work_time=${WORK_HOURS}시간 ${WORK_MINUTES}분" >> $GITHUB_OUTPUT
+
+      # 4-C. Issue 닫기 (자동으로 Jira 상태도 변경됨)
+      - name: Close GitHub Issue
+        if: steps.work-action.outputs.action == 'end' && steps.extract-ticket.outputs.skip != 'true'
+        run: |
+          echo "🔒 GitHub Issue 닫는 중..."
+          gh issue close ${{ github.event.issue.number }} --comment "✅ 작업이 완료되어 자동으로 Issue가 닫혔습니다."
+          echo "✅ Issue 닫기 완료 - Jira 상태는 sync-issue-status 워크플로우에서 자동 업데이트됩니다"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # 5. 실제 Jira 상태 조회
       - name: Get current Jira status
