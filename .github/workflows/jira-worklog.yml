@@ -251,10 +251,11 @@ jobs:
           if [ -z "$START_TIME" ] || [ "$START_TIME" = "null" ]; then
             echo "⚠️  작업 시작 시간을 찾을 수 없습니다. 기본값(1시간) 사용"
             WORK_SECONDS=3600
-            START_TIME=$(date -u -d '1 hour ago' +"%Y-%m-%dT%H:%M:%S.000+0000" 2>/dev/null || date -u -v-1H +"%Y-%m-%dT%H:%M:%S.000+0000")
+            # Linux에서 실행되므로 -d 옵션 사용
+            START_TIME=$(date -u -d '1 hour ago' +"%Y-%m-%dT%H:%M:%S.000+0000")
           else
-            # 작업 시간 계산 (초 단위)
-            START_EPOCH=$(date -d "$START_TIME" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$START_TIME" +%s)
+            # GitHub Actions는 Linux에서 실행 (Ubuntu)
+            START_EPOCH=$(date -d "$START_TIME" +%s)
             END_EPOCH=$(date +%s)
             WORK_SECONDS=$((END_EPOCH - START_EPOCH))
             
@@ -329,40 +330,70 @@ jobs:
             # Config 파일에서 목표 상태 찾기
             TARGET_STATUS=$(jq -r --arg id "$TRANSITION_ID" '.transitions[] | select(.id == $id) | .toStatus' "$CONFIG_FILE")
             echo "🎯 목표 상태: $TARGET_STATUS"
+            echo ""
             
             # 다단계 transition (최대 5번)
             for attempt in $(seq 1 5); do
-              CURRENT_STATUS=$(curl -s -X GET \
+              echo "📍 시도 $attempt/5"
+              
+              # 현재 상태 조회
+              ISSUE_INFO=$(curl -s -X GET \
                 -H "Content-Type: application/json" \
                 -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-                "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}" | jq -r '.fields.status.name')
+                "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}")
               
+              CURRENT_STATUS=$(echo "$ISSUE_INFO" | jq -r '.fields.status.name')
+              echo "  현재 상태: $CURRENT_STATUS"
+              
+              # 목표 도달 확인
               if [ "$CURRENT_STATUS" = "$TARGET_STATUS" ]; then
-                echo "✅ 목표 상태 도달: $TARGET_STATUS"
+                echo "  ✅ 목표 상태 도달!"
                 break
               fi
               
+              # 사용 가능한 transitions 조회
               AVAIL_TRANSITIONS=$(curl -s -X GET \
                 -H "Content-Type: application/json" \
                 -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
                 "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions")
               
+              echo "  사용 가능한 transitions:"
+              echo "$AVAIL_TRANSITIONS" | jq -r '.transitions[] | "    - ID: \(.id) | \(.name) → \(.to.name)"'
+              
+              # 목표 상태로 가는 transition 찾기
               NEXT_ID=$(echo "$AVAIL_TRANSITIONS" | jq -r --arg target "$TARGET_STATUS" '.transitions[] | select((.to.name | ascii_downcase) == ($target | ascii_downcase)) | .id' | head -n 1)
               
               if [ -z "$NEXT_ID" ] || [ "$NEXT_ID" = "null" ]; then
+                echo "  ⚠️  목표 상태로 직접 갈 수 없음. 첫 번째 가능한 transition 사용..."
                 NEXT_ID=$(echo "$AVAIL_TRANSITIONS" | jq -r '.transitions[0].id')
+                NEXT_STATUS=$(echo "$AVAIL_TRANSITIONS" | jq -r '.transitions[0].to.name')
+                echo "  → 중간 단계: $NEXT_STATUS (ID: $NEXT_ID)"
+              else
+                echo "  → 목표 상태로 이동 (ID: $NEXT_ID)"
               fi
               
               if [ -z "$NEXT_ID" ] || [ "$NEXT_ID" = "null" ]; then
+                echo "  ❌ 더 이상 가능한 transition이 없습니다."
                 break
               fi
               
-              curl -s -X POST \
+              # Transition 실행
+              TRANS_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
                 -H "Content-Type: application/json" \
                 -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
                 -d "{\"transition\": {\"id\": \"${NEXT_ID}\"}}" \
-                "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions" > /dev/null
+                "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions")
               
+              HTTP_CODE=$(echo "$TRANS_RESPONSE" | tail -n1)
+              
+              if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
+                echo "  ✅ Transition 성공"
+              else
+                echo "  ❌ Transition 실패 (HTTP $HTTP_CODE)"
+                break
+              fi
+              
+              echo ""
               sleep 1
             done
             
