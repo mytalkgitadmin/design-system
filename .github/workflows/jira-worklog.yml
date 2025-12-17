@@ -247,8 +247,26 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 5. GitHub Issue에 결과 코멘트
-      - name: Comment result on GitHub
+      # 5. 실제 Jira 상태 조회
+      - name: Get current Jira status
+        if: steps.extract-ticket.outputs.skip != 'true'
+        id: get-status
+        run: |
+          JIRA_TICKET="${{ steps.extract-ticket.outputs.jira_ticket }}"
+
+          echo "🔍 Jira 현재 상태 조회 중..."
+          ISSUE_INFO=$(curl -s -X GET \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}")
+
+          CURRENT_STATUS=$(echo "$ISSUE_INFO" | jq -r '.fields.status.name')
+
+          echo "status=${CURRENT_STATUS}" >> $GITHUB_OUTPUT
+          echo "✅ 조회된 상태: ${CURRENT_STATUS}"
+
+      # 6. GitHub Issue에 작업 로그 코멘트
+      - name: Comment work log on GitHub
         if: steps.extract-ticket.outputs.skip != 'true'
         uses: actions-cool/issues-helper@v3
         with:
@@ -265,3 +283,22 @@ jobs:
             | 👤 **담당자** | @${{ github.actor }} |
 
             > Jira Work Log가 자동으로 기록되었습니다.
+
+      # 7. GitHub Issue에 상태 동기화 코멘트
+      - name: Comment status sync on GitHub
+        if: steps.extract-ticket.outputs.skip != 'true'
+        uses: actions-cool/issues-helper@v3
+        with:
+          actions: "create-comment"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            ## 🔄 Jira 상태 동기화
+
+            > ${{ steps.work-action.outputs.action == 'start' && '🚀 작업 진행 중' || '✅ 작업 완료됨' }}
+
+            | | |
+            |:---|:---|
+            | 🎫 **Jira Ticket** | [${{ steps.extract-ticket.outputs.jira_ticket }}](${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.extract-ticket.outputs.jira_ticket }}) |
+            | 📊 **현재 상태** | **${{ steps.get-status.outputs.status }}** ✅ 상태 변경됨 |
+            | 👤 **담당자** | @${{ github.actor }} |
