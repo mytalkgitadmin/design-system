@@ -127,7 +127,29 @@ jobs:
             ) | .id' | head -n 1)
           fi
           
+          # 2. 현재 사용자를 담당자로 설정
+          echo ""
+          echo "👤 담당자 할당 중..."
+          MYSELF=$(curl -s -X GET \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/myself")
+          
+          ACCOUNT_ID=$(echo "$MYSELF" | jq -r '.accountId')
+          DISPLAY_NAME=$(echo "$MYSELF" | jq -r '.displayName')
+          
+          echo "  사용자: $DISPLAY_NAME (ID: $ACCOUNT_ID)"
+          
+          curl -s -X PUT \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -d "{\"accountId\": \"${ACCOUNT_ID}\"}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/assignee" > /dev/null
+          
+          echo "✅ 담당자 할당 완료"
+          
           # 3. Transition 실행 (다단계 지원)
+          echo ""
           if [ -n "$TRANSITION_ID" ] && [ "$TRANSITION_ID" != "null" ]; then
             echo "🔄 Transition 실행: ID=$TRANSITION_ID"
             
@@ -177,8 +199,10 @@ jobs:
             echo "💡 'Setup Jira Workflow'를 실행하여 workflow를 설정하세요."
           fi
           
-          # 2. Work Log 추가 (1초만 기록)
-          curl -X POST \
+          # 4. Work Log 추가 (1초만 기록)
+          echo ""
+          echo "📝 Work Log 기록 중..."
+          curl -s -X POST \
             -H "Content-Type: application/json" \
             -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
             -d "{
@@ -186,32 +210,24 @@ jobs:
               \"started\": \"${START_TIME}\",
               \"timeSpentSeconds\": 1
             }" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/worklog"
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/worklog" > /dev/null
           
-          # 3. 현재 사용자를 담당자로 설정
-          MYSELF=$(curl -s -X GET \
-            -H "Content-Type: application/json" \
-            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/myself")
+          echo "✅ Work Log 기록 완료"
           
-          ACCOUNT_ID=$(echo "$MYSELF" | jq -r '.accountId')
-          
-          curl -X PUT \
-            -H "Content-Type: application/json" \
-            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-            -d "{\"accountId\": \"${ACCOUNT_ID}\"}" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/assignee"
-          
-          # 4. Start date 설정
+          # 6. Start date 설정
+          echo ""
+          echo "📅 Start date 설정 중..."
           START_DATE=$(date -u +"%Y-%m-%d")
-          curl -X PUT \
+          curl -s -X PUT \
             -H "Content-Type: application/json" \
             -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
             -d "{\"fields\": {\"customfield_10015\": \"${START_DATE}\"}}" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}"
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}" > /dev/null
           
+          echo "✅ Start date 설정 완료"
+          echo ""
           echo "start_time=${START_TIME}" >> $GITHUB_OUTPUT
-          echo "✅ 작업 시작 완료"
+          echo "🎉 작업 시작 완료!"
 
       # 4-B. 작업 종료 - Work Log 기록 및 상태를 "Done"으로 변경
       - name: End work - Add work log and update to "Done"
