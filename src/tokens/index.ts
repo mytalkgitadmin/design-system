@@ -127,6 +127,33 @@ export const font = {
   }
 };
 
+export const typography = {
+  fontSize: {
+    '4xl': '56px',
+    '3xl': '48px',
+    '2xl': '40px',
+    xl: '32px',
+    lg: '28px',
+    md: '24px',
+    sm: '20px',
+    base: '18px',
+    default: '16px',
+    xs: '14px',
+    '2xs': '12px',
+    '3xs': '10px'
+  },
+  lineHeight: {
+    tight: 1.25,
+    normal: 1.5,
+    relaxed: 1.75
+  },
+  letterSpacing: {
+    tight: '-0.01em',
+    normal: '0',
+    wide: '0.01em'
+  }
+};
+
 export const spacing = {
   unit: 999
 };

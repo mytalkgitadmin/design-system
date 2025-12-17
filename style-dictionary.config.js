@@ -37,6 +37,11 @@ module.exports = {
             path[0] = 'font';
           }
 
+          // 4. 'typography' → 'font' 변경
+          if (path[0] === 'typography') {
+            path[0] = 'font';
+          }
+
           // 4. 'font-family' → 'family'
           if (path.includes('font-family')) {
             const idx = path.indexOf('font-family');
@@ -61,6 +66,7 @@ module.exports = {
           const primitives = {
             color: {},
             font: {},
+            typography: {},
             spacing: {},
             rounded: {},
           };
@@ -105,6 +111,21 @@ module.exports = {
               for (let i = 0; i < fontPath.length; i++) {
                 const key = fontPath[i];
                 if (i === fontPath.length - 1) {
+                  current[key] = token.value;
+                } else {
+                  if (!current[key]) current[key] = {};
+                  current = current[key];
+                }
+              }
+            }
+            else if (path[0] === 'typography') {
+              // typography.fontSize.lg, typography.lineHeight.lg 형태
+              const typoPath = path.slice(1); // 'typography' 제거
+
+              let current = primitives.typography;
+              for (let i = 0; i < typoPath.length; i++) {
+                const key = typoPath[i];
+                if (i === typoPath.length - 1) {
                   current[key] = token.value;
                 } else {
                   if (!current[key]) current[key] = {};
@@ -167,8 +188,8 @@ module.exports = {
           const lines = entries.map(([key, value]) => {
             // 키를 camelCase로 변환
             const camelKey = toCamelCase(key);
-            // 숫자로만 이루어진 키는 문자열로 감싸기
-            const safeKey = /^\d+$/.test(camelKey) ? `'${camelKey}'` : camelKey;
+            // 숫자로 시작하는 키는 따옴표로 감싸기 (예: '4xl', '2xs', '50')
+            const safeKey = /^\d/.test(camelKey) ? `'${camelKey}'` : camelKey;
 
             if (typeof value === 'object' && value !== null) {
               return `${spaces}${safeKey}: ${stringifyObject(value, indent + 2)}`;

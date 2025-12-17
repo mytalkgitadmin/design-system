@@ -124,6 +124,24 @@
   --spacing-unit-152: 152;
   --spacing-unit-200: 200;
   --spacing-unit-999: 999;
+  --font-fontSize-4xl: 56px; /** Display Large */
+  --font-fontSize-3xl: 48px; /** Display Medium */
+  --font-fontSize-2xl: 40px; /** Display Small */
+  --font-fontSize-xl: 32px; /** Display XSmall */
+  --font-fontSize-lg: 28px; /** Title Large */
+  --font-fontSize-md: 24px; /** Title Medium */
+  --font-fontSize-sm: 20px; /** Title Small */
+  --font-fontSize-base: 18px; /** Body Large */
+  --font-fontSize-default: 16px; /** Base font size (1rem) */
+  --font-fontSize-xs: 14px; /** Body Small */
+  --font-fontSize-2xs: 12px; /** Caption */
+  --font-fontSize-3xs: 10px; /** Caption XSmall */
+  --font-lineHeight-tight: 1.25; /** Tight line height for headings */
+  --font-lineHeight-normal: 1.5; /** Normal line height for body text */
+  --font-lineHeight-relaxed: 1.75; /** Relaxed line height for long text */
+  --font-letterSpacing-tight: -0.01em; /** Tight letter spacing (-1) */
+  --font-letterSpacing-normal: 0; /** Normal letter spacing (0) */
+  --font-letterSpacing-wide: 0.01em; /** Wide letter spacing (+1) */
   --brand-1-bg-default: var(--base-white);
   --brand-1-bg-subtle: var(--gray-50);
   --brand-1-bg-dim: var(--alpha-black64);

@@ -1,0 +1,100 @@
+{
+  "typography": {
+    "fontSize": {
+      "4xl": {
+        "value": "56px",
+        "type": "dimension",
+        "comment": "Display Large"
+      },
+      "3xl": {
+        "value": "48px",
+        "type": "dimension",
+        "comment": "Display Medium"
+      },
+      "2xl": {
+        "value": "40px",
+        "type": "dimension",
+        "comment": "Display Small"
+      },
+      "xl": {
+        "value": "32px",
+        "type": "dimension",
+        "comment": "Display XSmall"
+      },
+      "lg": {
+        "value": "28px",
+        "type": "dimension",
+        "comment": "Title Large"
+      },
+      "md": {
+        "value": "24px",
+        "type": "dimension",
+        "comment": "Title Medium"
+      },
+      "sm": {
+        "value": "20px",
+        "type": "dimension",
+        "comment": "Title Small"
+      },
+      "base": {
+        "value": "18px",
+        "type": "dimension",
+        "comment": "Body Large"
+      },
+      "default": {
+        "value": "16px",
+        "type": "dimension",
+        "comment": "Base font size (1rem)"
+      },
+      "xs": {
+        "value": "14px",
+        "type": "dimension",
+        "comment": "Body Small"
+      },
+      "2xs": {
+        "value": "12px",
+        "type": "dimension",
+        "comment": "Caption"
+      },
+      "3xs": {
+        "value": "10px",
+        "type": "dimension",
+        "comment": "Caption XSmall"
+      }
+    },
+    "lineHeight": {
+      "tight": {
+        "value": 1.25,
+        "type": "number",
+        "comment": "Tight line height for headings"
+      },
+      "normal": {
+        "value": 1.5,
+        "type": "number",
+        "comment": "Normal line height for body text"
+      },
+      "relaxed": {
+        "value": 1.75,
+        "type": "number",
+        "comment": "Relaxed line height for long text"
+      }
+    },
+    "letterSpacing": {
+      "tight": {
+        "value": "-0.01em",
+        "type": "dimension",
+        "comment": "Tight letter spacing (-1)"
+      },
+      "normal": {
+        "value": "0",
+        "type": "dimension",
+        "comment": "Normal letter spacing (0)"
+      },
+      "wide": {
+        "value": "0.01em",
+        "type": "dimension",
+        "comment": "Wide letter spacing (+1)"
+      }
+    }
+  }
+}
