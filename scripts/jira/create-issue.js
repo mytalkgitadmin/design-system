@@ -105,8 +105,8 @@ ${tasksList}`;
 
     // 3. GitHub Actions 안내
     console.log("\n⏳ GitHub Actions가 다음 작업을 자동으로 처리합니다:");
-    console.log("   - Jira 티켓 생성");
-    console.log("   - develop 브랜치 기반 새 브랜치 생성");
+    console.log("   - Jira 티켓 생성 및 초기 상태 설정");
+    console.log(`   - ${config.parentBranch || 'develop'} 브랜치 기반 새 브랜치 생성`);
     console.log("   - 이슈에 Jira 링크 및 브랜치 정보 추가");
 
     // 4. 완료 메시지

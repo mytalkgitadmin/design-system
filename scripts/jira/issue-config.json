@@ -1,4 +1,5 @@
 {
   "defaultParentTicket": "AUDS-52",
-  "projectName": "design-system"
+  "projectName": "design-system",
+  "parentBranch": "pre_dev"
 }
