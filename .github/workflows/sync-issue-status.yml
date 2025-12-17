@@ -9,9 +9,9 @@ jobs:
     name: Sync Issue Status to Jira
     runs-on: ubuntu-latest
     # work:start, work:end, closed, reopened만 처리
+    # github.event.action == 'reopened' ||
     if: |
       github.event.action == 'closed' || 
-      github.event.action == 'reopened' ||
       (github.event_name == 'issues' && 
        github.event.action == 'labeled' && 
        (github.event.label.name == 'work:start' || github.event.label.name == 'work:end'))
