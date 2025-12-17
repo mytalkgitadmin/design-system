@@ -264,10 +264,12 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ github.event.issue.number }}
           body: |
-            ## ${{ steps.work-action.outputs.action == 'start' && '🚀 작업 시작됨' || '✅ 작업 완료됨' }}
+            ## ${{ steps.work-action.outputs.action == 'start' && '🚀 작업 시작' || '✅ 작업 완료' }}
 
-            **Jira Ticket:** [${{ steps.extract-ticket.outputs.jira_ticket }}](${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.extract-ticket.outputs.jira_ticket }})
-            ${{ steps.work-action.outputs.action == 'start' && format('**시작 시간:** {0}', steps.start-work.outputs.start_time) || format('**작업 시간:** {0}', steps.end-work.outputs.work_time) }}
-            **담당자:** @${{ github.actor }}
+            | | |
+            |:---|:---|
+            | 🎫 **Jira Ticket** | [${{ steps.extract-ticket.outputs.jira_ticket }}](${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.extract-ticket.outputs.jira_ticket }}) |
+            | ${{ steps.work-action.outputs.action == 'start' && '⏰ **시작 시간**' || '⏱️ **작업 시간**' }} | ${{ steps.work-action.outputs.action == 'start' && steps.start-work.outputs.start_time || steps.end-work.outputs.work_time }} |
+            | 👤 **담당자** | @${{ github.actor }} |
 
-            _Jira Work Log가 자동으로 기록되었습니다._
+            > Jira Work Log가 자동으로 기록되었습니다.

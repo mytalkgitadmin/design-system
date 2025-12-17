@@ -225,10 +225,12 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ github.event.issue.number }}
           body: |
-            ## 🔄 Jira 동기화 완료
+            ## 🔄 Jira 상태 동기화
 
-            **Jira Ticket:** [${{ steps.extract-ticket.outputs.jira_ticket }}](${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.extract-ticket.outputs.jira_ticket }})
-            **상태:** ${{ steps.get-status.outputs.status }} ${{ steps.get-status.outputs.status_message }}
-            **메시지:** ${{ steps.map-status.outputs.comment }}
+            > ${{ steps.map-status.outputs.comment }}
 
-            _자동으로 Jira 상태가 업데이트되었습니다._
+            | | |
+            |:---|:---|
+            | 🎫 **Jira Ticket** | [${{ steps.extract-ticket.outputs.jira_ticket }}](${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.extract-ticket.outputs.jira_ticket }}) |
+            | 📊 **현재 상태** | **${{ steps.get-status.outputs.status }}** ${{ steps.get-status.outputs.status_message }} |
+            | 👤 **담당자** | @${{ github.actor }} |
