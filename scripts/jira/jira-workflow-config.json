@@ -1,7 +1,7 @@
 {
   "mappings": {
-    "start": "21",
-    "end": "31",
-    "inProgress": "21"
+    "start": "작업_시작_ID",
+    "end": "작업_완료_ID",
+    "inProgress": "작업_시작_ID"
   }
 }

@@ -27,8 +27,7 @@
     "chromatic": "npx chromatic --project-token=chpt_a7a4f2b4972968e",
     "issue": "node scripts/jira/create-issue.js",
     "issue:start": "node scripts/jira/start-work.js",
-    "issue:end": "node scripts/jira/end-work.js",
-    "jira:get-transitions": "node scripts/jira/get-transitions.js"
+    "issue:end": "node scripts/jira/end-work.js"
   },
   "repository": {
     "type": "git",

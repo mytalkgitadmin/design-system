@@ -7,8 +7,9 @@ GitHub 이슈와 Jira를 **완전 자동으로 동기화**하는 시스템입니
 ```bash
 # 0. 최초 1회: 초기 설정 (관리자)
 # - GitHub Secrets 설정 (JIRA_BASE_URL, JIRA_USER_EMAIL, JIRA_API_TOKEN, JIRA_PROJECT)
-# - GitHub Labels 생성 (GitHub Actions에서 "Setup GitHub Labels" 실행)
-# - jira-workflow-config.json 생성 (Transition ID 수동 설정)
+# - GitHub Actions에서 "Setup GitHub Labels" 실행
+# - GitHub Actions에서 "Get Jira Transitions" 실행 (Issue Key 입력)
+# - jira-workflow-config.json 생성 (Transition ID 수동 입력)
 
 # 1. 이슈 생성
 npm run issue
@@ -103,27 +104,22 @@ gh workflow run setup-github-labels.yml
 
 **Transition ID 찾는 방법:**
 
-##### 🎯 방법 1: 자동 조회 스크립트 (추천!)
+##### 🎯 방법 1: GitHub Actions 워크플로우 (추천! ⭐)
 
-```bash
-# 1. 먼저 Issue 하나 생성
-npm run issue
-
-# 2. 생성된 Issue 번호로 조회 (예: FMTW-123)
-npm run jira:get-transitions FMTW-123
-```
+1. **GitHub Actions 탭**으로 이동
+2. **"Get Jira Transitions"** 워크플로우 선택
+3. **"Run workflow"** 클릭
+4. Issue Key 입력 (예: `AUDS-123`)
+5. **Summary 탭**에서 결과 확인!
 
 출력 예시:
 
-```
-📌 현재 상태: 해야 할 일
-
-✅ 사용 가능한 Transitions:
-  ID: 4  | Start Progress → 진행 중
-  ID: 5  | Resolve Issue → 완료
-  ID: 11 | In Progress → 진행 중
-  ID: 31 | Done → 완료
-```
+| ID   | Transition Name | Target Status |
+| :--- | :-------------- | :------------ |
+| `4`  | Start Progress  | **진행 중**   |
+| `5`  | Resolve Issue   | **완료**      |
+| `11` | In Progress     | **진행 중**   |
+| `31` | Done            | **완료**      |
 
 ##### 🎯 방법 2: 브라우저 개발자 도구
 
