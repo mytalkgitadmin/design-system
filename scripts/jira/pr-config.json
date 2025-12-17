@@ -1,0 +1,10 @@
+{
+  "target_branch": "pre_dev",
+  "auto_create_pr": true,
+  "pr_template": {
+    "title_prefix": "[",
+    "title_suffix": "]",
+    "include_jira_link": true,
+    "draft": false
+  }
+}

@@ -28,7 +28,7 @@ npm run issue:start
 
 # 5. 작업 완료
 npm run issue:end
-  → GitHub Actions 트리거 → Jira Work Log 기록 + 상태 "완료/해결됨"
+  → GitHub Actions 트리거 → Jira Work Log 기록 + PR 자동 생성 + Issue 닫기 + Jira 상태 "완료"
 
 # 완료! 🎉
 ```
@@ -38,6 +38,7 @@ npm run issue:end
 - ✅ **GitHub Issue 생성 → Jira 티켓 자동 생성 + 브랜치 자동 생성**
 - ✅ **GitHub Issue 상태 변경 → Jira 상태 자동 동기화**
 - ✅ **작업 시작/종료 → Jira Work Log 자동 기록**
+- ✅ **작업 완료 → Pull Request 자동 생성** 🆕
 - ✅ **GitHub Secrets로 중앙 관리** (로컬에서도 사용 가능)
 
 ---
