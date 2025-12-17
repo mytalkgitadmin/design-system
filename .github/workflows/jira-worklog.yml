@@ -186,16 +186,16 @@ jobs:
             -H "Accept: application/vnd.github.v3+json" \
             "${{ github.api_url }}/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/events")
 
-          START_TIME=$(echo "$EVENTS" | jq -r '.[] | select(.event == "labeled" and .label.name == "work:start") | .created_at' | head -n 1)
+          START_TIME_RAW=$(echo "$EVENTS" | jq -r '.[] | select(.event == "labeled" and .label.name == "work:start") | .created_at' | head -n 1)
 
-          if [ -z "$START_TIME" ] || [ "$START_TIME" = "null" ]; then
+          if [ -z "$START_TIME_RAW" ] || [ "$START_TIME_RAW" = "null" ]; then
             echo "⚠️  작업 시작 시간을 찾을 수 없습니다. 기본값(1시간) 사용"
             WORK_SECONDS=3600
             # Linux에서 실행되므로 -d 옵션 사용
             START_TIME=$(date -u -d '1 hour ago' +"%Y-%m-%dT%H:%M:%S.000+0000")
           else
             # GitHub Actions는 Linux에서 실행 (Ubuntu)
-            START_EPOCH=$(date -d "$START_TIME" +%s)
+            START_EPOCH=$(date -d "$START_TIME_RAW" +%s)
             END_EPOCH=$(date +%s)
             WORK_SECONDS=$((END_EPOCH - START_EPOCH))
             
@@ -203,6 +203,9 @@ jobs:
             if [ $WORK_SECONDS -lt 60 ]; then
               WORK_SECONDS=60
             fi
+            
+            # GitHub ISO 8601 형식을 Jira 형식으로 변환 (2025-12-17T04:17:44Z → 2025-12-17T04:17:44.000+0000)
+            START_TIME=$(date -u -d "$START_TIME_RAW" +"%Y-%m-%dT%H:%M:%S.000+0000")
           fi
 
           WORK_HOURS=$((WORK_SECONDS / 3600))
@@ -211,7 +214,11 @@ jobs:
           echo "⏱️  작업 시간: ${WORK_HOURS}시간 ${WORK_MINUTES}분 (${WORK_SECONDS}초)"
 
           # 2. Work Log 추가
-          curl -X POST \
+          echo "📝 Work Log 요청 데이터:"
+          echo "  - Started: ${START_TIME}"
+          echo "  - Time Spent: ${WORK_SECONDS}초 (${WORK_HOURS}h ${WORK_MINUTES}m)"
+
+          WORKLOG_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             -H "Content-Type: application/json" \
             -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
             -d "{
@@ -219,44 +226,50 @@ jobs:
               \"started\": \"${START_TIME}\",
               \"timeSpentSeconds\": ${WORK_SECONDS}
             }" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/worklog"
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/worklog")
 
-          echo "✅ Work Log 추가 완료"
+          HTTP_CODE=$(echo "$WORKLOG_RESPONSE" | tail -n1)
+          RESPONSE_BODY=$(echo "$WORKLOG_RESPONSE" | sed '$d')
 
-          # 3. 상태를 "Done"으로 변경
-          CONFIG_FILE="scripts/jira/jira-workflow-config.json"
-
-          if [ -f "$CONFIG_FILE" ]; then
-            TRANSITION_ID=$(jq -r '.mappings.end // empty' "$CONFIG_FILE")
-            
-            if [ -n "$TRANSITION_ID" ] && [ "$TRANSITION_ID" != "null" ]; then
-              echo "✅ 설정된 Transition ID: $TRANSITION_ID"
-            else
-              echo "❌ Config 파일에 end transition ID가 없습니다!"
-              echo "💡 scripts/jira/jira-workflow-config.json 파일을 확인하세요."
-              exit 1
-            fi
+          if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Work Log 추가 완료 (HTTP $HTTP_CODE)"
           else
-            echo "❌ Config 파일이 없습니다: $CONFIG_FILE"
-            echo "💡 scripts/jira/jira-workflow-config.json 파일을 생성하세요."
-            exit 1
+            echo "❌ Work Log 추가 실패 (HTTP $HTTP_CODE)"
+            echo "응답: $RESPONSE_BODY"
           fi
-
-          # Transition 실행
-          echo "🔄 Transition 실행: ID=$TRANSITION_ID"
-
-          curl -s -X POST \
-            -H "Content-Type: application/json" \
-            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-            -d "{\"transition\": {\"id\": \"${TRANSITION_ID}\"}}" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions"
-
-          echo "✅ 상태 변경 완료"
 
           echo "work_time=${WORK_HOURS}시간 ${WORK_MINUTES}분" >> $GITHUB_OUTPUT
 
-      # 5. GitHub Issue에 결과 코멘트
-      - name: Comment result on GitHub
+      # 4-C. Issue 닫기 (자동으로 Jira 상태도 변경됨)
+      - name: Close GitHub Issue
+        if: steps.work-action.outputs.action == 'end' && steps.extract-ticket.outputs.skip != 'true'
+        run: |
+          echo "🔒 GitHub Issue 닫는 중..."
+          gh issue close ${{ github.event.issue.number }} --comment "✅ 작업이 완료되어 자동으로 Issue가 닫혔습니다."
+          echo "✅ Issue 닫기 완료 - Jira 상태는 sync-issue-status 워크플로우에서 자동 업데이트됩니다"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 5. 실제 Jira 상태 조회
+      - name: Get current Jira status
+        if: steps.extract-ticket.outputs.skip != 'true'
+        id: get-status
+        run: |
+          JIRA_TICKET="${{ steps.extract-ticket.outputs.jira_ticket }}"
+
+          echo "🔍 Jira 현재 상태 조회 중..."
+          ISSUE_INFO=$(curl -s -X GET \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}")
+
+          CURRENT_STATUS=$(echo "$ISSUE_INFO" | jq -r '.fields.status.name')
+
+          echo "status=${CURRENT_STATUS}" >> $GITHUB_OUTPUT
+          echo "✅ 조회된 상태: ${CURRENT_STATUS}"
+
+      # 6. GitHub Issue에 작업 로그 코멘트
+      - name: Comment work log on GitHub
         if: steps.extract-ticket.outputs.skip != 'true'
         uses: actions-cool/issues-helper@v3
         with:
@@ -273,3 +286,22 @@ jobs:
             | 👤 **담당자** | @${{ github.actor }} |
 
             > Jira Work Log가 자동으로 기록되었습니다.
+
+      # 7. GitHub Issue에 상태 동기화 코멘트
+      - name: Comment status sync on GitHub
+        if: steps.extract-ticket.outputs.skip != 'true'
+        uses: actions-cool/issues-helper@v3
+        with:
+          actions: "create-comment"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            ## 🔄 Jira 상태 동기화
+
+            > ${{ steps.work-action.outputs.action == 'start' && '🚀 작업 진행 중' || '✅ 작업 완료됨' }}
+
+            | | |
+            |:---|:---|
+            | 🎫 **Jira Ticket** | [${{ steps.extract-ticket.outputs.jira_ticket }}](${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.extract-ticket.outputs.jira_ticket }}) |
+            | 📊 **현재 상태** | **${{ steps.get-status.outputs.status }}** ✅ 상태 변경됨 |
+            | 👤 **담당자** | @${{ github.actor }} |
