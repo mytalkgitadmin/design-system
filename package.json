@@ -13,6 +13,7 @@
     "@vitest/browser-playwright": "^4.0.15",
     "@vitest/coverage-v8": "^4.0.15",
     "chromatic": "^13.3.4",
+    "husky": "^9.1.7",
     "playwright": "^1.57.0",
     "storybook": "^10.1.7",
     "tsup": "^8.5.1",
@@ -29,7 +30,9 @@
     "issue:start": "node scripts/jira/start-work.js",
     "issue:end": "node scripts/jira/end-work.js",
     "pr": "node scripts/jira/create-pr.js",
-    "jira:create": "node scripts/jira/create-jira-only.js"
+    "jira:create": "node scripts/jira/create-jira-only.js",
+    "commit:help": "node scripts/jira/smart-commit-help.js",
+    "prepare": "husky"
   },
   "repository": {
     "type": "git",
