@@ -95,9 +95,9 @@ gh workflow run setup-github-labels.yml
 ```json
 {
   "mappings": {
+    "init": "1",
     "start": "4",
-    "end": "5",
-    "inProgress": "4"
+    "end": "5"
   }
 }
 ```
@@ -131,9 +131,9 @@ gh workflow run setup-github-labels.yml
 
 **필수 ID:**
 
+- `init`: (선택) Issue 생성 시 초기 상태 Transition ID
 - `start`: "해야 할 일" → "진행 중" 으로 가는 Transition ID
 - `end`: "진행 중" → "완료" 또는 "해결됨"으로 가는 Transition ID
-- `inProgress`: 보통 `start`와 동일
 
 > 💡 **팁:** 각 Jira 프로젝트마다 Workflow가 다르므로, 프로젝트별로 직접 확인해야 합니다!
 
