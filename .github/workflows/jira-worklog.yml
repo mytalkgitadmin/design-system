@@ -186,16 +186,16 @@ jobs:
             -H "Accept: application/vnd.github.v3+json" \
             "${{ github.api_url }}/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/events")
 
-          START_TIME=$(echo "$EVENTS" | jq -r '.[] | select(.event == "labeled" and .label.name == "work:start") | .created_at' | head -n 1)
+          START_TIME_RAW=$(echo "$EVENTS" | jq -r '.[] | select(.event == "labeled" and .label.name == "work:start") | .created_at' | head -n 1)
 
-          if [ -z "$START_TIME" ] || [ "$START_TIME" = "null" ]; then
+          if [ -z "$START_TIME_RAW" ] || [ "$START_TIME_RAW" = "null" ]; then
             echo "⚠️  작업 시작 시간을 찾을 수 없습니다. 기본값(1시간) 사용"
             WORK_SECONDS=3600
             # Linux에서 실행되므로 -d 옵션 사용
             START_TIME=$(date -u -d '1 hour ago' +"%Y-%m-%dT%H:%M:%S.000+0000")
           else
             # GitHub Actions는 Linux에서 실행 (Ubuntu)
-            START_EPOCH=$(date -d "$START_TIME" +%s)
+            START_EPOCH=$(date -d "$START_TIME_RAW" +%s)
             END_EPOCH=$(date +%s)
             WORK_SECONDS=$((END_EPOCH - START_EPOCH))
             
@@ -203,6 +203,9 @@ jobs:
             if [ $WORK_SECONDS -lt 60 ]; then
               WORK_SECONDS=60
             fi
+            
+            # GitHub ISO 8601 형식을 Jira 형식으로 변환 (2025-12-17T04:17:44Z → 2025-12-17T04:17:44.000+0000)
+            START_TIME=$(date -u -d "$START_TIME_RAW" +"%Y-%m-%dT%H:%M:%S.000+0000")
           fi
 
           WORK_HOURS=$((WORK_SECONDS / 3600))
