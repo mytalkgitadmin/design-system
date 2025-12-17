@@ -8,6 +8,10 @@ jobs:
   sync-to-jira:
     name: Sync Issue Status to Jira
     runs-on: ubuntu-latest
+    # work:start, work:end 라벨은 jira-worklog.yml에서 처리하므로 제외
+    if: |
+      github.event_name != 'issues' || 
+      (github.event.label.name != 'work:start' && github.event.label.name != 'work:end')
 
     steps:
       # 1. 코드 체크아웃
