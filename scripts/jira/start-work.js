@@ -31,17 +31,22 @@ function extractJiraTicket(branchName) {
 async function getIssueNumber(jiraTicket) {
   try {
     const issues = executeCommand(
-      `gh issue list --json number,title --search "[${jiraTicket}]"`
+      `gh issue list --json number,title --limit 100`
     );
     const issueList = JSON.parse(issues);
 
-    if (issueList.length === 0) {
+    // Jira 티켓 번호가 제목에 포함된 Issue 찾기
+    const matchedIssue = issueList.find((issue) =>
+      issue.title.includes(jiraTicket)
+    );
+
+    if (!matchedIssue) {
       throw new Error(
         `Jira 티켓 ${jiraTicket}에 해당하는 GitHub Issue를 찾을 수 없습니다.`
       );
     }
 
-    return issueList[0].number;
+    return matchedIssue.number;
   } catch (error) {
     throw new Error(`GitHub Issue 조회 실패: ${error.message}`);
   }

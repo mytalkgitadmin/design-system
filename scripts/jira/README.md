@@ -5,9 +5,11 @@ GitHub 이슈와 Jira를 **완전 자동으로 동기화**하는 시스템입니
 ## 📋 작업 순서 (Quick Start)
 
 ```bash
-# 0. 최초 1회: GitHub 라벨 설정
-npm run setup:labels
-  → work:start, work:end, in progress, review, blocked 라벨 생성
+# 0. 최초 1회: 초기 설정 (관리자)
+# - GitHub Secrets 설정 (JIRA_BASE_URL, JIRA_USER_EMAIL, JIRA_API_TOKEN, JIRA_PROJECT)
+# - GitHub Actions에서 "Setup GitHub Labels" 실행
+# - GitHub Actions에서 "Get Jira Transitions" 실행 (Issue Key 입력)
+# - jira-workflow-config.json 생성 (Transition ID 수동 입력)
 
 # 1. 이슈 생성
 npm run issue
@@ -26,7 +28,7 @@ npm run issue:start
 
 # 5. 작업 완료
 npm run issue:end
-  → GitHub Actions 트리거 → Jira Work Log 기록 + 상태 "Done"
+  → GitHub Actions 트리거 → Jira Work Log 기록 + 상태 "완료/해결됨"
 
 # 완료! 🎉
 ```
@@ -67,9 +69,11 @@ gh auth login
 
 ### 3. GitHub 라벨 설정 (최초 1회)
 
+GitHub Actions 페이지에서 **"Setup GitHub Labels"** 워크플로우를 수동 실행하거나:
+
 ```bash
 # 자동화에 필요한 라벨 생성
-npm run setup:labels
+gh workflow run setup-github-labels.yml
 ```
 
 생성되는 라벨:
@@ -80,7 +84,60 @@ npm run setup:labels
 - `review` - 리뷰 중 (Jira 상태 동기화)
 - `blocked` - 블로킹됨 (Jira 상태 동기화)
 
-### 4. .env 파일 설정 (선택사항 - 로컬 개발용)
+### 4. Jira Workflow 설정 (최초 1회) ⭐⭐⭐
+
+**가장 중요한 단계입니다!** Jira의 상태 변경을 위한 Transition ID를 설정해야 합니다.
+
+#### 🎯 방법: 수동으로 `jira-workflow-config.json` 파일 생성
+
+`scripts/jira/jira-workflow-config.json` 파일을 다음 형식으로 생성하세요:
+
+```json
+{
+  "mappings": {
+    "init": "1",
+    "start": "4",
+    "end": "5"
+  }
+}
+```
+
+**Transition ID 찾는 방법:**
+
+##### 🎯 방법 1: GitHub Actions 워크플로우 (추천! ⭐)
+
+1. **GitHub Actions 탭**으로 이동
+2. **"Get Jira Transitions"** 워크플로우 선택
+3. **"Run workflow"** 클릭
+4. Issue Key 입력 (예: `AUDS-123`)
+5. **Summary 탭**에서 결과 확인!
+
+출력 예시:
+
+| ID   | Transition Name | Target Status |
+| :--- | :-------------- | :------------ |
+| `4`  | Start Progress  | **진행 중**   |
+| `5`  | Resolve Issue   | **완료**      |
+| `11` | In Progress     | **진행 중**   |
+| `31` | Done            | **완료**      |
+
+##### 🎯 방법 2: 브라우저 개발자 도구
+
+1. Jira에서 아무 Issue 열기
+2. **F12** (개발자 도구) → **Network 탭**
+3. 상태 변경 버튼 클릭 (예: "진행 중")
+4. Network 탭에서 **`transitions`** 요청 찾기
+5. **Response**에서 `id` 값 확인
+
+**필수 ID:**
+
+- `init`: (선택) Issue 생성 시 초기 상태 Transition ID
+- `start`: "해야 할 일" → "진행 중" 으로 가는 Transition ID
+- `end`: "진행 중" → "완료" 또는 "해결됨"으로 가는 Transition ID
+
+> 💡 **팁:** 각 Jira 프로젝트마다 Workflow가 다르므로, 프로젝트별로 직접 확인해야 합니다!
+
+### 5. .env 파일 설정 (선택사항 - 로컬 개발용)
 
 **🆕 이제 `.env` 파일이 필수가 아닙니다!**
 

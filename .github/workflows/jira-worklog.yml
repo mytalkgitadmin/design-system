@@ -8,14 +8,14 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'Work action (start or end)'
+        description: "Work action (start or end)"
         required: true
         type: choice
         options:
           - start
           - end
       issue_number:
-        description: 'GitHub Issue number'
+        description: "GitHub Issue number"
         required: true
         type: string
 
@@ -39,18 +39,18 @@ jobs:
         run: |
           # 제목에서 [JIRA-123] 형식으로 추출
           JIRA_TICKET=$(echo '${{ github.event.issue.title }}' | grep -oE '\[([A-Z]+-[0-9]+)\]' | tr -d '[]' | head -n 1)
-          
+
           # 제목에 없으면 본문에서 추출
           if [ -z "$JIRA_TICKET" ]; then
             JIRA_TICKET=$(echo '${{ github.event.issue.body }}' | grep -oE '([A-Z]+-[0-9]+)' | head -n 1)
           fi
-          
+
           if [ -z "$JIRA_TICKET" ]; then
             echo "⚠️  Jira 티켓을 찾을 수 없습니다."
             echo "skip=true" >> $GITHUB_OUTPUT
             exit 0
           fi
-          
+
           echo "jira_ticket=$JIRA_TICKET" >> $GITHUB_OUTPUT
           echo "skip=false" >> $GITHUB_OUTPUT
           echo "✅ Jira 티켓: $JIRA_TICKET"
@@ -74,7 +74,7 @@ jobs:
               echo "action=end" >> $GITHUB_OUTPUT
             fi
           fi
-          
+
           echo "✅ 작업 타입: $(cat $GITHUB_OUTPUT | grep action | cut -d= -f2)"
 
       # 4-A. 작업 시작 - Jira 상태를 "진행 중"으로 변경
@@ -84,101 +84,65 @@ jobs:
         run: |
           JIRA_TICKET="${{ steps.extract-ticket.outputs.jira_ticket }}"
           START_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S.000+0000")
-          
+
           echo "🚀 작업 시작 처리 중..."
-          
-          # 1. 저장된 workflow 설정 확인
+
+          # Config 파일에서 Transition ID 읽기
           CONFIG_FILE="scripts/jira/jira-workflow-config.json"
-          
+
           if [ -f "$CONFIG_FILE" ]; then
-            echo "📄 저장된 workflow 설정 사용"
-            TRANSITION_ID=$(jq -r '.mappings.start' "$CONFIG_FILE")
+            TRANSITION_ID=$(jq -r '.mappings.start // empty' "$CONFIG_FILE")
             
-            if [ "$TRANSITION_ID" != "null" ] && [ -n "$TRANSITION_ID" ]; then
+            if [ -n "$TRANSITION_ID" ] && [ "$TRANSITION_ID" != "null" ]; then
               echo "✅ 설정된 Transition ID: $TRANSITION_ID"
             else
-              echo "⚠️  설정 파일에 start transition이 없습니다. 자동 탐색..."
-              TRANSITION_ID=""
+              echo "❌ Config 파일에 start transition ID가 없습니다!"
+              echo "💡 scripts/jira/jira-workflow-config.json 파일을 확인하세요."
+              exit 1
             fi
           else
-            echo "⚠️  Workflow 설정 파일이 없습니다. 자동 탐색..."
-            TRANSITION_ID=""
+            echo "❌ Config 파일이 없습니다: $CONFIG_FILE"
+            echo "💡 scripts/jira/jira-workflow-config.json 파일을 생성하세요."
+            exit 1
           fi
-          
-          # 2. 설정이 없으면 자동으로 찾기
-          if [ -z "$TRANSITION_ID" ] || [ "$TRANSITION_ID" = "null" ]; then
-            echo "🔍 사용 가능한 transition 조회 중..."
-            TRANSITIONS=$(curl -s -X GET \
-              -H "Content-Type: application/json" \
-              -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-              "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions")
-            
-            echo "📋 사용 가능한 transition 목록:"
-            echo "$TRANSITIONS" | jq -r '.transitions[] | "  ID: \(.id) | \(.name) → \(.to.name)"'
-            
-            TRANSITION_ID=$(echo "$TRANSITIONS" | jq -r '.transitions[] | select(
-              (.to.name | ascii_downcase) == "in progress" or
-              (.to.name | ascii_downcase) == "진행 중" or
-              (.to.name | ascii_downcase) == "진행중" or
-              (.to.name | ascii_downcase) == "개발중" or
-              (.to.name | ascii_downcase) == "개발 중" or
-              (.name | ascii_downcase) == "in progress" or
-              (.name | ascii_downcase) | contains("progress")
-            ) | .id' | head -n 1)
-          fi
-          
-          # 3. Transition 실행 (다단계 지원)
-          if [ -n "$TRANSITION_ID" ] && [ "$TRANSITION_ID" != "null" ]; then
-            echo "🔄 Transition 실행: ID=$TRANSITION_ID"
-            
-            # Config 파일에서 목표 상태 찾기
-            TARGET_STATUS=$(jq -r --arg id "$TRANSITION_ID" '.transitions[] | select(.id == $id) | .toStatus' "$CONFIG_FILE")
-            echo "🎯 목표 상태: $TARGET_STATUS"
-            
-            # 다단계 transition (최대 5번)
-            for attempt in $(seq 1 5); do
-              CURRENT_STATUS=$(curl -s -X GET \
-                -H "Content-Type: application/json" \
-                -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-                "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}" | jq -r '.fields.status.name')
-              
-              if [ "$CURRENT_STATUS" = "$TARGET_STATUS" ]; then
-                echo "✅ 목표 상태 도달: $TARGET_STATUS"
-                break
-              fi
-              
-              AVAIL_TRANSITIONS=$(curl -s -X GET \
-                -H "Content-Type: application/json" \
-                -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-                "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions")
-              
-              NEXT_ID=$(echo "$AVAIL_TRANSITIONS" | jq -r --arg target "$TARGET_STATUS" '.transitions[] | select((.to.name | ascii_downcase) == ($target | ascii_downcase)) | .id' | head -n 1)
-              
-              if [ -z "$NEXT_ID" ] || [ "$NEXT_ID" = "null" ]; then
-                NEXT_ID=$(echo "$AVAIL_TRANSITIONS" | jq -r '.transitions[0].id')
-              fi
-              
-              if [ -z "$NEXT_ID" ] || [ "$NEXT_ID" = "null" ]; then
-                break
-              fi
-              
-              curl -s -X POST \
-                -H "Content-Type: application/json" \
-                -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-                -d "{\"transition\": {\"id\": \"${NEXT_ID}\"}}" \
-                "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions" > /dev/null
-              
-              sleep 1
-            done
-            
-            echo "✅ 상태 변경 완료"
-          else
-            echo "⚠️  적절한 transition을 찾을 수 없습니다."
-            echo "💡 'Setup Jira Workflow'를 실행하여 workflow를 설정하세요."
-          fi
-          
-          # 2. Work Log 추가 (1초만 기록)
-          curl -X POST \
+
+          # 2. 현재 사용자를 담당자로 설정
+          echo ""
+          echo "👤 담당자 할당 중..."
+          MYSELF=$(curl -s -X GET \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/myself")
+
+          ACCOUNT_ID=$(echo "$MYSELF" | jq -r '.accountId')
+          DISPLAY_NAME=$(echo "$MYSELF" | jq -r '.displayName')
+
+          echo "  사용자: $DISPLAY_NAME (ID: $ACCOUNT_ID)"
+
+          curl -s -X PUT \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -d "{\"accountId\": \"${ACCOUNT_ID}\"}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/assignee" > /dev/null
+
+          echo "✅ 담당자 할당 완료"
+
+          # 3. Transition 실행
+          echo ""
+          echo "🔄 Transition 실행: ID=$TRANSITION_ID"
+
+          curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -d "{\"transition\": {\"id\": \"${TRANSITION_ID}\"}}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions"
+
+          echo "✅ 상태 변경 완료"
+
+          # 4. Work Log 추가 (1초만 기록)
+          echo ""
+          echo "📝 Work Log 기록 중..."
+          curl -s -X POST \
             -H "Content-Type: application/json" \
             -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
             -d "{
@@ -186,32 +150,24 @@ jobs:
               \"started\": \"${START_TIME}\",
               \"timeSpentSeconds\": 1
             }" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/worklog"
-          
-          # 3. 현재 사용자를 담당자로 설정
-          MYSELF=$(curl -s -X GET \
-            -H "Content-Type: application/json" \
-            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/myself")
-          
-          ACCOUNT_ID=$(echo "$MYSELF" | jq -r '.accountId')
-          
-          curl -X PUT \
-            -H "Content-Type: application/json" \
-            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-            -d "{\"accountId\": \"${ACCOUNT_ID}\"}" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/assignee"
-          
-          # 4. Start date 설정
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/worklog" > /dev/null
+
+          echo "✅ Work Log 기록 완료"
+
+          # 6. Start date 설정
+          echo ""
+          echo "📅 Start date 설정 중..."
           START_DATE=$(date -u +"%Y-%m-%d")
-          curl -X PUT \
+          curl -s -X PUT \
             -H "Content-Type: application/json" \
             -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
             -d "{\"fields\": {\"customfield_10015\": \"${START_DATE}\"}}" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}"
-          
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}" > /dev/null
+
+          echo "✅ Start date 설정 완료"
+          echo ""
           echo "start_time=${START_TIME}" >> $GITHUB_OUTPUT
-          echo "✅ 작업 시작 완료"
+          echo "🎉 작업 시작 완료!"
 
       # 4-B. 작업 종료 - Work Log 기록 및 상태를 "Done"으로 변경
       - name: End work - Add work log and update to "Done"
@@ -220,25 +176,26 @@ jobs:
         run: |
           JIRA_TICKET="${{ steps.extract-ticket.outputs.jira_ticket }}"
           END_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S.000+0000")
-          
+
           echo "✅ 작업 종료 처리 중..."
-          
+
           # 1. 작업 시간 계산 (GitHub Issue 생성/라벨링 시간 기준)
           # GitHub API로 "work:start" 라벨이 추가된 시간 조회
           EVENTS=$(curl -s -X GET \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             "${{ github.api_url }}/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/events")
-          
+
           START_TIME=$(echo "$EVENTS" | jq -r '.[] | select(.event == "labeled" and .label.name == "work:start") | .created_at' | head -n 1)
-          
+
           if [ -z "$START_TIME" ] || [ "$START_TIME" = "null" ]; then
             echo "⚠️  작업 시작 시간을 찾을 수 없습니다. 기본값(1시간) 사용"
             WORK_SECONDS=3600
-            START_TIME=$(date -u -d '1 hour ago' +"%Y-%m-%dT%H:%M:%S.000+0000" 2>/dev/null || date -u -v-1H +"%Y-%m-%dT%H:%M:%S.000+0000")
+            # Linux에서 실행되므로 -d 옵션 사용
+            START_TIME=$(date -u -d '1 hour ago' +"%Y-%m-%dT%H:%M:%S.000+0000")
           else
-            # 작업 시간 계산 (초 단위)
-            START_EPOCH=$(date -d "$START_TIME" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$START_TIME" +%s)
+            # GitHub Actions는 Linux에서 실행 (Ubuntu)
+            START_EPOCH=$(date -d "$START_TIME" +%s)
             END_EPOCH=$(date +%s)
             WORK_SECONDS=$((END_EPOCH - START_EPOCH))
             
@@ -247,12 +204,12 @@ jobs:
               WORK_SECONDS=60
             fi
           fi
-          
+
           WORK_HOURS=$((WORK_SECONDS / 3600))
           WORK_MINUTES=$(((WORK_SECONDS % 3600) / 60))
-          
+
           echo "⏱️  작업 시간: ${WORK_HOURS}시간 ${WORK_MINUTES}분 (${WORK_SECONDS}초)"
-          
+
           # 2. Work Log 추가
           curl -X POST \
             -H "Content-Type: application/json" \
@@ -263,99 +220,39 @@ jobs:
               \"timeSpentSeconds\": ${WORK_SECONDS}
             }" \
             "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/worklog"
-          
+
           echo "✅ Work Log 추가 완료"
-          
+
           # 3. 상태를 "Done"으로 변경
           CONFIG_FILE="scripts/jira/jira-workflow-config.json"
-          
+
           if [ -f "$CONFIG_FILE" ]; then
-            echo "📄 저장된 workflow 설정 사용"
-            TRANSITION_ID=$(jq -r '.mappings.end' "$CONFIG_FILE")
+            TRANSITION_ID=$(jq -r '.mappings.end // empty' "$CONFIG_FILE")
             
-            if [ "$TRANSITION_ID" != "null" ] && [ -n "$TRANSITION_ID" ]; then
+            if [ -n "$TRANSITION_ID" ] && [ "$TRANSITION_ID" != "null" ]; then
               echo "✅ 설정된 Transition ID: $TRANSITION_ID"
             else
-              echo "⚠️  설정 파일에 end transition이 없습니다. 자동 탐색..."
-              TRANSITION_ID=""
+              echo "❌ Config 파일에 end transition ID가 없습니다!"
+              echo "💡 scripts/jira/jira-workflow-config.json 파일을 확인하세요."
+              exit 1
             fi
           else
-            echo "⚠️  Workflow 설정 파일이 없습니다. 자동 탐색..."
-            TRANSITION_ID=""
+            echo "❌ Config 파일이 없습니다: $CONFIG_FILE"
+            echo "💡 scripts/jira/jira-workflow-config.json 파일을 생성하세요."
+            exit 1
           fi
-          
-          # 설정이 없으면 자동으로 찾기
-          if [ -z "$TRANSITION_ID" ] || [ "$TRANSITION_ID" = "null" ]; then
-            echo "🔍 사용 가능한 transition 조회 중..."
-            TRANSITIONS=$(curl -s -X GET \
-              -H "Content-Type: application/json" \
-              -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-              "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions")
-            
-            echo "📋 사용 가능한 transition 목록:"
-            echo "$TRANSITIONS" | jq -r '.transitions[] | "  ID: \(.id) | \(.name) → \(.to.name)"'
-            
-            TRANSITION_ID=$(echo "$TRANSITIONS" | jq -r '.transitions[] | select(
-              (.to.name | ascii_downcase) == "done" or
-              (.to.name | ascii_downcase) == "완료" or
-              (.to.name | ascii_downcase) == "해결됨" or
-              (.to.name | ascii_downcase) == "종료" or
-              (.to.name | ascii_downcase) == "closed" or
-              (.name | ascii_downcase) == "done" or
-              (.name | ascii_downcase) | contains("done")
-            ) | .id' | head -n 1)
-          fi
-          
-          # Transition 실행 (다단계 지원)
-          if [ -n "$TRANSITION_ID" ] && [ "$TRANSITION_ID" != "null" ]; then
-            echo "🔄 Transition 실행: ID=$TRANSITION_ID"
-            
-            # Config 파일에서 목표 상태 찾기
-            TARGET_STATUS=$(jq -r --arg id "$TRANSITION_ID" '.transitions[] | select(.id == $id) | .toStatus' "$CONFIG_FILE")
-            echo "🎯 목표 상태: $TARGET_STATUS"
-            
-            # 다단계 transition (최대 5번)
-            for attempt in $(seq 1 5); do
-              CURRENT_STATUS=$(curl -s -X GET \
-                -H "Content-Type: application/json" \
-                -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-                "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}" | jq -r '.fields.status.name')
-              
-              if [ "$CURRENT_STATUS" = "$TARGET_STATUS" ]; then
-                echo "✅ 목표 상태 도달: $TARGET_STATUS"
-                break
-              fi
-              
-              AVAIL_TRANSITIONS=$(curl -s -X GET \
-                -H "Content-Type: application/json" \
-                -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-                "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions")
-              
-              NEXT_ID=$(echo "$AVAIL_TRANSITIONS" | jq -r --arg target "$TARGET_STATUS" '.transitions[] | select((.to.name | ascii_downcase) == ($target | ascii_downcase)) | .id' | head -n 1)
-              
-              if [ -z "$NEXT_ID" ] || [ "$NEXT_ID" = "null" ]; then
-                NEXT_ID=$(echo "$AVAIL_TRANSITIONS" | jq -r '.transitions[0].id')
-              fi
-              
-              if [ -z "$NEXT_ID" ] || [ "$NEXT_ID" = "null" ]; then
-                break
-              fi
-              
-              curl -s -X POST \
-                -H "Content-Type: application/json" \
-                -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-                -d "{\"transition\": {\"id\": \"${NEXT_ID}\"}}" \
-                "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions" > /dev/null
-              
-              sleep 1
-            done
-            
-            echo "✅ 상태 변경 완료"
-          else
-            echo "⚠️  적절한 transition을 찾을 수 없습니다."
-            echo "💡 'Setup Jira Workflow'를 실행하여 workflow를 설정하세요."
-          fi
-          
+
+          # Transition 실행
+          echo "🔄 Transition 실행: ID=$TRANSITION_ID"
+
+          curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -d "{\"transition\": {\"id\": \"${TRANSITION_ID}\"}}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions"
+
+          echo "✅ 상태 변경 완료"
+
           echo "work_time=${WORK_HOURS}시간 ${WORK_MINUTES}분" >> $GITHUB_OUTPUT
 
       # 5. GitHub Issue에 결과 코멘트
@@ -367,11 +264,12 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ github.event.issue.number }}
           body: |
-            ## ${{ steps.work-action.outputs.action == 'start' && '🚀 작업 시작됨' || '✅ 작업 완료됨' }}
-            
-            **Jira Ticket:** [${{ steps.extract-ticket.outputs.jira_ticket }}](${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.extract-ticket.outputs.jira_ticket }})
-            ${{ steps.work-action.outputs.action == 'start' && format('**시작 시간:** {0}', steps.start-work.outputs.start_time) || format('**작업 시간:** {0}', steps.end-work.outputs.work_time) }}
-            **담당자:** @${{ github.actor }}
-            
-            _Jira Work Log가 자동으로 기록되었습니다._
+            ## ${{ steps.work-action.outputs.action == 'start' && '🚀 작업 시작' || '✅ 작업 완료' }}
 
+            | | |
+            |:---|:---|
+            | 🎫 **Jira Ticket** | [${{ steps.extract-ticket.outputs.jira_ticket }}](${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.extract-ticket.outputs.jira_ticket }}) |
+            | ${{ steps.work-action.outputs.action == 'start' && '⏰ **시작 시간**' || '⏱️ **작업 시간**' }} | ${{ steps.work-action.outputs.action == 'start' && steps.start-work.outputs.start_time || steps.end-work.outputs.work_time }} |
+            | 👤 **담당자** | @${{ github.actor }} |
+
+            > Jira Work Log가 자동으로 기록되었습니다.

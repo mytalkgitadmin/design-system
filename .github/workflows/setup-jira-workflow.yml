@@ -134,90 +134,146 @@ jobs:
 
           echo "✅ Output 저장 완료"
 
-      - name: Auto-detect transitions if not provided
+      - name: Auto-detect transitions by moving through states
         id: auto-detect
         run: |
-          echo "🔍 DEBUG: Output 확인"
-          echo "Raw output: '${{ steps.fetch-transitions.outputs.transitions }}'"
-          echo "Length: $(echo '${{ steps.fetch-transitions.outputs.transitions }}' | wc -c)"
+          SAMPLE_ISSUE="${{ steps.fetch-transitions.outputs.sample_issue }}"
+          SHOULD_DELETE="${{ steps.fetch-transitions.outputs.should_delete }}"
 
-          # Multiline output을 heredoc으로 읽기
-          TRANSITIONS=$(cat <<'TRANSITIONS_EOF'
+          echo "🔍 단계별 transition 조회 시작..."
+          echo "  샘플 이슈: $SAMPLE_ISSUE"
+          echo ""
+
+          # 초기 transitions (전체) 수집
+          INITIAL_TRANSITIONS=$(cat <<'TRANSITIONS_EOF'
           ${{ steps.fetch-transitions.outputs.transitions }}
           TRANSITIONS_EOF
           )
 
-          echo ""
-          echo "🔍 받은 TRANSITIONS 데이터:"
-          echo "Length: $(echo "$TRANSITIONS" | wc -c)"
-          echo "Content:"
-          echo "$TRANSITIONS"
+          # 1단계: 초기 상태에서 "진행 중"으로 가는 transition 찾기
+          echo "📍 1단계: 작업 시작 transition 찾기"
+          CURRENT_STATUS=$(curl -s -X GET \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${SAMPLE_ISSUE}" | jq -r '.fields.status.name')
 
-          if [ -z "$TRANSITIONS" ] || [ "$TRANSITIONS" = "null" ]; then
-            echo "❌ TRANSITIONS가 비어있습니다!"
-            exit 1
-          fi
+          echo "  현재 상태: $CURRENT_STATUS"
 
-          echo ""
-          echo "📋 JSON 파싱 시도:"
-          echo "$TRANSITIONS" | jq '.'
+          AVAILABLE_TRANS=$(curl -s -X GET \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${SAMPLE_ISSUE}/transitions")
 
-          # 자동 탐지
-          # "In Progress"로 가는 transition 찾기
-          START_ID=$(echo "$TRANSITIONS" | jq -r '.[] | select(
+          echo "  사용 가능한 transitions:"
+          echo "$AVAILABLE_TRANS" | jq -r '.transitions[] | "    - \(.name) → \(.to.name) (ID: \(.id))"'
+
+          # Transition 이름으로 찾기 (우선순위: 이름 > 목표 상태)
+          START_ID=$(echo "$AVAILABLE_TRANS" | jq -r '.transitions[] | select(
+            (.name | ascii_downcase) | contains("start") or
+            (.name | ascii_downcase) | contains("progress") or
+            (.name | ascii_downcase) | contains("시작") or
+            (.name | ascii_downcase) | contains("진행") or
             (.to.name | ascii_downcase) == "in progress" or
-            (.to.name | ascii_downcase) == "진행 중" or
-            (.to.name | ascii_downcase) == "진행중"
+            (.to.name | ascii_downcase) == "진행 중"
           ) | .id' | head -n 1)
 
-          if [ -n "$START_ID" ] && [ "$START_ID" != "null" ] && [ "$START_ID" != "" ]; then
-            START_NAME=$(echo "$TRANSITIONS" | jq -r ".[] | select(.id == \"$START_ID\") | .to.name")
-            echo "✅ 작업 시작: ID=$START_ID → $START_NAME"
+          if [ -n "$START_ID" ] && [ "$START_ID" != "null" ]; then
+            START_STATUS=$(echo "$AVAILABLE_TRANS" | jq -r ".transitions[] | select(.id == \"$START_ID\") | .to.name")
+            START_TRANS_NAME=$(echo "$AVAILABLE_TRANS" | jq -r ".transitions[] | select(.id == \"$START_ID\") | .name")
+            echo "  ✅ 작업 시작: $CURRENT_STATUS → $START_STATUS (Transition: $START_TRANS_NAME, ID: $START_ID)"
+            
+            # "진행 중" 상태로 이동
+            curl -s -X POST \
+              -H "Content-Type: application/json" \
+              -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+              -d "{\"transition\": {\"id\": \"${START_ID}\"}}" \
+              "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${SAMPLE_ISSUE}/transitions" > /dev/null
+            
+            sleep 1
           else
-            echo "⚠️  작업 시작 transition을 찾을 수 없습니다"
+            echo "  ⚠️  작업 시작 transition을 찾을 수 없습니다"
+            START_STATUS=""
           fi
+          echo ""
 
-          # "Done"으로 가는 transition 찾기
-          END_ID=$(echo "$TRANSITIONS" | jq -r '.[] | select(
+          # 2단계: "진행 중" 상태에서 "완료"로 가는 transition 찾기
+          echo "📍 2단계: 작업 완료 transition 찾기"
+          CURRENT_STATUS=$(curl -s -X GET \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${SAMPLE_ISSUE}" | jq -r '.fields.status.name')
+
+          echo "  현재 상태: $CURRENT_STATUS"
+
+          PROGRESS_TRANS=$(curl -s -X GET \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${SAMPLE_ISSUE}/transitions")
+
+          echo "  사용 가능한 transitions:"
+          echo "$PROGRESS_TRANS" | jq -r '.transitions[] | "    - \(.name) → \(.to.name) (ID: \(.id))"'
+
+          # Transition 이름으로 찾기 (우선순위: 이름 > 목표 상태)
+          END_ID=$(echo "$PROGRESS_TRANS" | jq -r '.transitions[] | select(
+            (.name | ascii_downcase) | contains("resolve") or
+            (.name | ascii_downcase) | contains("done") or
+            (.name | ascii_downcase) | contains("close") or
+            (.name | ascii_downcase) | contains("해결") or
+            (.name | ascii_downcase) | contains("완료") or
+            (.name | ascii_downcase) | contains("종료") or
             (.to.name | ascii_downcase) == "done" or
             (.to.name | ascii_downcase) == "완료" or
             (.to.name | ascii_downcase) == "해결됨" or
             (.to.name | ascii_downcase) == "종료"
           ) | .id' | head -n 1)
 
-          if [ -n "$END_ID" ] && [ "$END_ID" != "null" ] && [ "$END_ID" != "" ]; then
-            END_NAME=$(echo "$TRANSITIONS" | jq -r ".[] | select(.id == \"$END_ID\") | .to.name")
-            echo "✅ 작업 완료: ID=$END_ID → $END_NAME"
+          if [ -n "$END_ID" ] && [ "$END_ID" != "null" ]; then
+            END_STATUS=$(echo "$PROGRESS_TRANS" | jq -r ".transitions[] | select(.id == \"$END_ID\") | .to.name")
+            END_TRANS_NAME=$(echo "$PROGRESS_TRANS" | jq -r ".transitions[] | select(.id == \"$END_ID\") | .name")
+            echo "  ✅ 작업 완료: $CURRENT_STATUS → $END_STATUS (Transition: $END_TRANS_NAME, ID: $END_ID)"
           else
-            echo "⚠️  작업 완료 transition을 찾을 수 없습니다"
+            echo "  ⚠️  작업 완료 transition을 찾을 수 없습니다"
+            END_STATUS=""
           fi
+          echo ""
 
-          # 리뷰 transition 찾기
-          REVIEW_ID=$(echo "$TRANSITIONS" | jq -r '.[] | select(
+          # 3단계: 리뷰 transition 찾기 (초기 transitions에서)
+          echo "📍 3단계: 리뷰 transition 찾기"
+          REVIEW_ID=$(echo "$INITIAL_TRANSITIONS" | jq -r '.[] | select(
             (.to.name | ascii_downcase) | contains("review") or
             (.to.name | ascii_downcase) | contains("리뷰")
           ) | .id' | head -n 1)
 
-          if [ -n "$REVIEW_ID" ] && [ "$REVIEW_ID" != "null" ] && [ "$REVIEW_ID" != "" ]; then
-            REVIEW_NAME=$(echo "$TRANSITIONS" | jq -r ".[] | select(.id == \"$REVIEW_ID\") | .to.name")
-            echo "✅ 리뷰: ID=$REVIEW_ID → $REVIEW_NAME"
+          if [ -n "$REVIEW_ID" ] && [ "$REVIEW_ID" != "null" ]; then
+            REVIEW_STATUS=$(echo "$INITIAL_TRANSITIONS" | jq -r ".[] | select(.id == \"$REVIEW_ID\") | .to.name")
+            echo "  ✅ 리뷰: $REVIEW_STATUS (ID: $REVIEW_ID)"
+          else
+            echo "  ⚠️  리뷰 transition을 찾을 수 없습니다"
           fi
+          echo ""
 
-          # 블로킹 transition 찾기
-          BLOCKED_ID=$(echo "$TRANSITIONS" | jq -r '.[] | select(
+          # 4단계: 블로킹 transition 찾기 (초기 transitions에서)
+          echo "📍 4단계: 블로킹 transition 찾기"
+          BLOCKED_ID=$(echo "$INITIAL_TRANSITIONS" | jq -r '.[] | select(
             (.to.name | ascii_downcase) | contains("block") or
             (.to.name | ascii_downcase) | contains("블로킹")
           ) | .id' | head -n 1)
 
-          if [ -n "$BLOCKED_ID" ] && [ "$BLOCKED_ID" != "null" ] && [ "$BLOCKED_ID" != "" ]; then
-            BLOCKED_NAME=$(echo "$TRANSITIONS" | jq -r ".[] | select(.id == \"$BLOCKED_ID\") | .to.name")
-            echo "✅ 블로킹: ID=$BLOCKED_ID → $BLOCKED_NAME"
+          if [ -n "$BLOCKED_ID" ] && [ "$BLOCKED_ID" != "null" ]; then
+            BLOCKED_STATUS=$(echo "$INITIAL_TRANSITIONS" | jq -r ".[] | select(.id == \"$BLOCKED_ID\") | .to.name")
+            echo "  ✅ 블로킹: $BLOCKED_STATUS (ID: $BLOCKED_ID)"
+          else
+            echo "  ⚠️  블로킹 transition을 찾을 수 없습니다"
           fi
 
           echo "start_id=$START_ID" >> $GITHUB_OUTPUT
           echo "end_id=$END_ID" >> $GITHUB_OUTPUT
           echo "review_id=$REVIEW_ID" >> $GITHUB_OUTPUT
           echo "blocked_id=$BLOCKED_ID" >> $GITHUB_OUTPUT
+          echo "start_status=$START_STATUS" >> $GITHUB_OUTPUT
+          echo "end_status=$END_STATUS" >> $GITHUB_OUTPUT
+          echo "start_trans_name=$START_TRANS_NAME" >> $GITHUB_OUTPUT
+          echo "end_trans_name=$END_TRANS_NAME" >> $GITHUB_OUTPUT
 
       - name: Create workflow config file
         run: |
@@ -234,6 +290,11 @@ jobs:
           END_ID="${{ steps.auto-detect.outputs.end_id }}"
           REVIEW_ID="${{ steps.auto-detect.outputs.review_id }}"
           BLOCKED_ID="${{ steps.auto-detect.outputs.blocked_id }}"
+
+          START_STATUS="${{ steps.auto-detect.outputs.start_status }}"
+          END_STATUS="${{ steps.auto-detect.outputs.end_status }}"
+          START_TRANS_NAME="${{ steps.auto-detect.outputs.start_trans_name }}"
+          END_TRANS_NAME="${{ steps.auto-detect.outputs.end_trans_name }}"
 
           # null 또는 빈 값 처리
           [ -z "$START_ID" ] || [ "$START_ID" = "null" ] && START_ID=""
@@ -262,6 +323,14 @@ jobs:
               "inProgress": $([ -n "$START_ID" ] && echo "\"$START_ID\"" || echo "null"),
               "review": $([ -n "$REVIEW_ID" ] && echo "\"$REVIEW_ID\"" || echo "null"),
               "blocked": $([ -n "$BLOCKED_ID" ] && echo "\"$BLOCKED_ID\"" || echo "null")
+            },
+            "targetStatuses": {
+              "start": "$START_STATUS",
+              "end": "$END_STATUS"
+            },
+            "transitionNames": {
+              "start": "$START_TRANS_NAME",
+              "end": "$END_TRANS_NAME"
             }
           }
           EOF

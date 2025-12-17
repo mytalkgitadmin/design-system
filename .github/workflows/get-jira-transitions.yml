@@ -1,0 +1,115 @@
+name: Get Jira Transitions
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_key:
+        description: "Jira Issue Key (예: AUDS-123)"
+        required: true
+        type: string
+
+jobs:
+  get-transitions:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get Jira Transitions
+        run: |
+          ISSUE_KEY="${{ inputs.issue_key }}"
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔍 $ISSUE_KEY 의 사용 가능한 Transitions 조회 중..."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+
+          # 현재 상태 확인
+          ISSUE_RESPONSE=$(curl -s -X GET \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/$ISSUE_KEY")
+
+          CURRENT_STATUS=$(echo "$ISSUE_RESPONSE" | jq -r '.fields.status.name // empty')
+
+          if [ -z "$CURRENT_STATUS" ]; then
+            echo "❌ Issue를 찾을 수 없거나 인증에 실패했습니다: $ISSUE_KEY"
+            echo ""
+            echo "응답:"
+            echo "$ISSUE_RESPONSE" | jq '.'
+            exit 1
+          fi
+
+          echo "📌 현재 상태: $CURRENT_STATUS"
+          echo ""
+
+          # Transitions 조회
+          TRANSITIONS_RESPONSE=$(curl -s -X GET \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/$ISSUE_KEY/transitions")
+
+          TRANSITION_COUNT=$(echo "$TRANSITIONS_RESPONSE" | jq '.transitions | length')
+
+          if [ "$TRANSITION_COUNT" -eq 0 ]; then
+            echo "⚠️  현재 상태에서 사용 가능한 transition이 없습니다."
+            exit 0
+          fi
+
+          echo "✅ 사용 가능한 Transitions:"
+          echo ""
+
+          # JSON 파싱 및 포맷팅
+          echo "$TRANSITIONS_RESPONSE" | jq -r '.transitions[] | "  ID: \(.id) | \(.name) → \(.to.name)"'
+
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "💡 설정 방법:"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "scripts/jira/jira-workflow-config.json 파일에 아래와 같이 입력:"
+          echo ""
+          echo '{'
+          echo '  "mappings": {'
+          echo '    "init": "?",     ← (선택) 초기 상태 ID'
+          echo '    "start": "?",    ← 위에서 "진행 중"으로 가는 ID'
+          echo '    "end": "?"        ← 위에서 "완료"로 가는 ID'
+          echo '  }'
+          echo '}'
+          echo ""
+          echo "예시:"
+          echo '  "init": "1"       ← ID: 1  | Create → 해야 할 일'
+          echo '  "start": "21"     ← ID: 21 | Start Progress → 진행 중'
+          echo '  "end": "31"       ← ID: 31 | Done → 완료'
+          echo ""
+
+          # Summary 생성
+          echo "## 🔍 Jira Transitions 조회 결과" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Issue:** \`$ISSUE_KEY\`" >> $GITHUB_STEP_SUMMARY
+          echo "**현재 상태:** $CURRENT_STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ 사용 가능한 Transitions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| ID | Transition Name | Target Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|:---|:----------------|:--------------|" >> $GITHUB_STEP_SUMMARY
+
+          echo "$TRANSITIONS_RESPONSE" | jq -r '.transitions[] | "| `\(.id)` | \(.name) | **\(.to.name)** |"' >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 💡 설정 방법" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`scripts/jira/jira-workflow-config.json\` 파일에 다음과 같이 입력하세요:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo '{' >> $GITHUB_STEP_SUMMARY
+          echo '  "mappings": {' >> $GITHUB_STEP_SUMMARY
+          echo '    "init": "초기_상태_ID",      ← (선택) Issue 생성 시 초기 상태' >> $GITHUB_STEP_SUMMARY
+          echo '    "start": "작업_시작_ID",     ← "진행 중"으로 가는 ID' >> $GITHUB_STEP_SUMMARY
+          echo '    "end": "작업_완료_ID"         ← "완료"로 가는 ID' >> $GITHUB_STEP_SUMMARY
+          echo '  }' >> $GITHUB_STEP_SUMMARY
+          echo '}' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**필수 ID:**" >> $GITHUB_STEP_SUMMARY
+          echo "- \`init\`: (선택) Issue 생성 시 초기 상태 Transition ID" >> $GITHUB_STEP_SUMMARY
+          echo "- \`start\`: \"해야 할 일\" → \"진행 중\" 으로 가는 Transition ID" >> $GITHUB_STEP_SUMMARY
+          echo "- \`end\`: \"진행 중\" → \"완료\" 또는 \"해결됨\"으로 가는 Transition ID" >> $GITHUB_STEP_SUMMARY

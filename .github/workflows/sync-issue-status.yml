@@ -20,18 +20,18 @@ jobs:
         run: |
           # 제목에서 [JIRA-123] 형식으로 추출
           JIRA_TICKET=$(echo '${{ github.event.issue.title }}' | grep -oE '\[([A-Z]+-[0-9]+)\]' | tr -d '[]' | head -n 1)
-          
+
           # 제목에 없으면 본문에서 추출
           if [ -z "$JIRA_TICKET" ]; then
             JIRA_TICKET=$(echo '${{ github.event.issue.body }}' | grep -oE '([A-Z]+-[0-9]+)' | head -n 1)
           fi
-          
+
           if [ -z "$JIRA_TICKET" ]; then
             echo "⚠️  Jira 티켓을 찾을 수 없습니다. 동기화를 건너뜁니다."
             echo "skip=true" >> $GITHUB_OUTPUT
             exit 0
           fi
-          
+
           echo "jira_ticket=$JIRA_TICKET" >> $GITHUB_OUTPUT
           echo "skip=false" >> $GITHUB_OUTPUT
           echo "✅ Jira 티켓 발견: $JIRA_TICKET"
@@ -47,7 +47,7 @@ jobs:
             echo "skip=true" >> $GITHUB_OUTPUT
             exit 0
           fi
-          
+
           echo "✅ Workflow config 로드 완료"
           cat scripts/jira/jira-workflow-config.json | jq '.'
           echo "skip=false" >> $GITHUB_OUTPUT
@@ -59,29 +59,29 @@ jobs:
         run: |
           LABELS="${{ join(github.event.issue.labels.*.name, ',') }}"
           IS_CLOSED="${{ github.event.issue.state == 'closed' }}"
-          
+
           echo "현재 라벨: ${LABELS}"
           echo "이슈 상태: ${{ github.event.issue.state }}"
           echo ""
-          
+
           # Config 파일에서 transition ID 읽기
           CONFIG_FILE="scripts/jira/jira-workflow-config.json"
           START_ID=$(jq -r '.mappings.start // empty' "$CONFIG_FILE")
           END_ID=$(jq -r '.mappings.end // empty' "$CONFIG_FILE")
           REVIEW_ID=$(jq -r '.mappings.review // empty' "$CONFIG_FILE")
           BLOCKED_ID=$(jq -r '.mappings.blocked // empty' "$CONFIG_FILE")
-          
+
           echo "📋 설정된 Transition ID:"
           echo "  Start (in progress): $START_ID"
           echo "  End (done): $END_ID"
           echo "  Review: $REVIEW_ID"
           echo "  Blocked: $BLOCKED_ID"
           echo ""
-          
+
           # 라벨에 따라 transition ID 선택
           TRANSITION_ID=""
           COMMENT=""
-          
+
           if [ "$IS_CLOSED" = "true" ]; then
             TRANSITION_ID="$END_ID"
             COMMENT="✅ 작업 완료 (GitHub Issue가 닫혔습니다)"
@@ -99,7 +99,7 @@ jobs:
             echo "skip_update=true" >> $GITHUB_OUTPUT
             exit 0
           fi
-          
+
           # Transition ID가 null이거나 비어있으면 스킵
           if [ -z "$TRANSITION_ID" ] || [ "$TRANSITION_ID" = "null" ]; then
             echo "⚠️  해당 상태에 대한 transition ID가 설정되지 않았습니다."
@@ -107,113 +107,70 @@ jobs:
             echo "skip_update=true" >> $GITHUB_OUTPUT
             exit 0
           fi
-          
+
           echo "transition_id=${TRANSITION_ID}" >> $GITHUB_OUTPUT
           echo "comment=${COMMENT}" >> $GITHUB_OUTPUT
           echo "skip_update=false" >> $GITHUB_OUTPUT
           echo "✅ 사용할 Transition ID: ${TRANSITION_ID}"
 
-      # 5. Jira 상태 업데이트 (다단계 transition 지원)
-      - name: Update Jira status with multi-step transitions
+      # 5. 작업자 할당
+      - name: Assign to current user
+        if: steps.map-status.outputs.skip_update != 'true' && steps.extract-ticket.outputs.skip != 'true' && steps.load-config.outputs.skip != 'true'
+        run: |
+          JIRA_TICKET="${{ steps.extract-ticket.outputs.jira_ticket }}"
+
+          echo "👤 작업자 할당 중..."
+
+          # 현재 사용자 정보 가져오기
+          MYSELF=$(curl -s -X GET \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/myself")
+
+          ACCOUNT_ID=$(echo "$MYSELF" | jq -r '.accountId')
+          DISPLAY_NAME=$(echo "$MYSELF" | jq -r '.displayName')
+
+          echo "  사용자: $DISPLAY_NAME (ID: $ACCOUNT_ID)"
+
+          # 작업자 할당
+          ASSIGN_RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -d "{\"accountId\": \"${ACCOUNT_ID}\"}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/assignee")
+
+          HTTP_CODE=$(echo "$ASSIGN_RESPONSE" | tail -n1)
+
+          if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ 작업자 할당 완료"
+          else
+            echo "⚠️  작업자 할당 실패 (HTTP $HTTP_CODE) - 계속 진행합니다"
+          fi
+          echo ""
+
+      # 6. Jira 상태 업데이트 (단순 ID 기반)
+      - name: Update Jira status
         if: steps.map-status.outputs.skip_update != 'true' && steps.extract-ticket.outputs.skip != 'true' && steps.load-config.outputs.skip != 'true'
         id: update-status
         run: |
           JIRA_TICKET="${{ steps.extract-ticket.outputs.jira_ticket }}"
-          TARGET_TRANSITION_ID="${{ steps.map-status.outputs.transition_id }}"
-          
+          TRANSITION_ID="${{ steps.map-status.outputs.transition_id }}"
+
           echo "🔄 Jira 상태 업데이트 중..."
           echo "  Ticket: $JIRA_TICKET"
-          echo "  Target Transition ID: $TARGET_TRANSITION_ID"
-          echo ""
-          
-          # Config 파일에서 목표 상태 이름 찾기
-          CONFIG_FILE="scripts/jira/jira-workflow-config.json"
-          TARGET_STATUS=$(jq -r --arg id "$TARGET_TRANSITION_ID" '.transitions[] | select(.id == $id) | .toStatus' "$CONFIG_FILE")
-          
-          echo "🎯 목표 상태: $TARGET_STATUS"
-          echo ""
-          
-          # 다단계 transition 시도 (최대 5번)
-          MAX_ATTEMPTS=5
-          SUCCESS=false
-          
-          for attempt in $(seq 1 $MAX_ATTEMPTS); do
-            echo "📍 시도 $attempt/$MAX_ATTEMPTS"
-            
-            # 현재 상태 조회
-            ISSUE_INFO=$(curl -s -X GET \
-              -H "Content-Type: application/json" \
-              -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-              "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}")
-            
-            CURRENT_STATUS=$(echo "$ISSUE_INFO" | jq -r '.fields.status.name')
-            echo "  현재 상태: $CURRENT_STATUS"
-            
-            # 목표 상태에 도달했는지 확인
-            if [ "$CURRENT_STATUS" = "$TARGET_STATUS" ]; then
-              echo "✅ 목표 상태에 도달했습니다!"
-              SUCCESS=true
-              break
-            fi
-            
-            # 사용 가능한 transitions 조회
-            TRANSITIONS=$(curl -s -X GET \
-              -H "Content-Type: application/json" \
-              -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-              "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions")
-            
-            echo "  사용 가능한 transitions:"
-            echo "$TRANSITIONS" | jq -r '.transitions[] | "    - ID: \(.id) | \(.name) → \(.to.name)"'
-            
-            # 목표 상태로 가는 transition 찾기
-            NEXT_TRANSITION_ID=$(echo "$TRANSITIONS" | jq -r --arg target "$TARGET_STATUS" '.transitions[] | select((.to.name | ascii_downcase) == ($target | ascii_downcase)) | .id' | head -n 1)
-            
-            # 목표 상태로 직접 갈 수 없으면, 첫 번째 가능한 transition 사용
-            if [ -z "$NEXT_TRANSITION_ID" ] || [ "$NEXT_TRANSITION_ID" = "null" ]; then
-              echo "  ⚠️  목표 상태로 직접 갈 수 없습니다. 중간 단계로 이동 시도..."
-              NEXT_TRANSITION_ID=$(echo "$TRANSITIONS" | jq -r '.transitions[0].id')
-              NEXT_STATUS=$(echo "$TRANSITIONS" | jq -r '.transitions[0].to.name')
-              
-              if [ -z "$NEXT_TRANSITION_ID" ] || [ "$NEXT_TRANSITION_ID" = "null" ]; then
-                echo "  ❌ 더 이상 가능한 transition이 없습니다."
-                break
-              fi
-              
-              echo "  → 중간 단계: $NEXT_STATUS (ID: $NEXT_TRANSITION_ID)"
-            else
-              echo "  → 목표 상태로 이동 (ID: $NEXT_TRANSITION_ID)"
-            fi
-            
-            # Transition 실행
-            UPDATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-              -H "Content-Type: application/json" \
-              -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-              -d "{\"transition\": {\"id\": \"${NEXT_TRANSITION_ID}\"}}" \
-              "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions")
-            
-            HTTP_CODE=$(echo "$UPDATE_RESPONSE" | tail -n1)
-            RESPONSE_BODY=$(echo "$UPDATE_RESPONSE" | sed '$d')
-            
-            if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
-              echo "  ✅ Transition 성공"
-            else
-              echo "  ❌ Transition 실패 (HTTP $HTTP_CODE)"
-              echo "$RESPONSE_BODY" | jq '.' || echo "$RESPONSE_BODY"
-              break
-            fi
-            
-            echo ""
-            sleep 1  # API rate limit 방지
-          done
-          
-          if [ "$SUCCESS" = "true" ]; then
-            echo "success=true" >> $GITHUB_OUTPUT
-          else
-            echo "⚠️  최대 시도 횟수($MAX_ATTEMPTS)에 도달했거나 실패했습니다."
-            echo "success=false" >> $GITHUB_OUTPUT
-          fi
+          echo "  Transition ID: $TRANSITION_ID"
 
-      # 6. Jira에 코멘트 추가
+          # Transition 실행
+          curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -d "{\"transition\": {\"id\": \"${TRANSITION_ID}\"}}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions"
+
+          echo "✅ 상태 변경 완료"
+          echo "success=true" >> $GITHUB_OUTPUT
+
+      # 7. Jira에 코멘트 추가
       - name: Add comment to Jira
         if: steps.extract-ticket.outputs.skip != 'true' && steps.map-status.outputs.skip_update != 'true'
         run: |
@@ -221,45 +178,45 @@ jobs:
           COMMENT="${{ steps.map-status.outputs.comment }}"
           GITHUB_URL="${{ github.event.issue.html_url }}"
           ACTOR="${{ github.actor }}"
-          
+
           COMMENT_BODY="${COMMENT}\n\n📌 By: ${ACTOR}\n🔗 GitHub Issue: ${GITHUB_URL}"
-          
+
           curl -X POST \
             -H "Content-Type: application/json" \
             -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
             -d "{\"body\": \"${COMMENT_BODY}\"}" \
             "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/comment"
-          
+
           echo "✅ Jira 코멘트 추가 완료"
 
-      # 7. 실제 Jira 상태 조회
+      # 8. 실제 Jira 상태 조회
       - name: Get current Jira status
         if: steps.extract-ticket.outputs.skip != 'true'
         id: get-status
         run: |
           JIRA_TICKET="${{ steps.extract-ticket.outputs.jira_ticket }}"
           UPDATE_SUCCESS="${{ steps.update-status.outputs.success }}"
-          
+
           echo "🔍 Jira 현재 상태 조회 중..."
           ISSUE_INFO=$(curl -s -X GET \
             -H "Content-Type: application/json" \
             -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
             "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}")
-          
+
           CURRENT_STATUS=$(echo "$ISSUE_INFO" | jq -r '.fields.status.name')
-          
+
           # 상태 메시지 결정
           if [ "$UPDATE_SUCCESS" = "true" ]; then
             STATUS_MESSAGE="✅ 상태 변경됨"
           else
             STATUS_MESSAGE="ℹ️  현재 상태"
           fi
-          
+
           echo "status=${CURRENT_STATUS}" >> $GITHUB_OUTPUT
           echo "status_message=${STATUS_MESSAGE}" >> $GITHUB_OUTPUT
           echo "✅ 조회된 상태: ${CURRENT_STATUS}"
 
-      # 8. GitHub Issue에 동기화 완료 코멘트
+      # 9. GitHub Issue에 동기화 완료 코멘트
       - name: Comment sync result on GitHub
         if: steps.extract-ticket.outputs.skip != 'true'
         uses: actions-cool/issues-helper@v3
@@ -268,11 +225,12 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ github.event.issue.number }}
           body: |
-            ## 🔄 Jira 동기화 완료
-            
-            **Jira Ticket:** [${{ steps.extract-ticket.outputs.jira_ticket }}](${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.extract-ticket.outputs.jira_ticket }})
-            **상태:** ${{ steps.get-status.outputs.status }} ${{ steps.get-status.outputs.status_message }}
-            **메시지:** ${{ steps.map-status.outputs.comment }}
-            
-            _자동으로 Jira 상태가 업데이트되었습니다._
+            ## 🔄 Jira 상태 동기화
 
+            > ${{ steps.map-status.outputs.comment }}
+
+            | | |
+            |:---|:---|
+            | 🎫 **Jira Ticket** | [${{ steps.extract-ticket.outputs.jira_ticket }}](${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.extract-ticket.outputs.jira_ticket }}) |
+            | 📊 **현재 상태** | **${{ steps.get-status.outputs.status }}** ${{ steps.get-status.outputs.status_message }} |
+            | 👤 **담당자** | @${{ github.actor }} |
