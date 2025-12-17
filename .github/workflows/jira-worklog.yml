@@ -211,7 +211,11 @@ jobs:
           echo "⏱️  작업 시간: ${WORK_HOURS}시간 ${WORK_MINUTES}분 (${WORK_SECONDS}초)"
 
           # 2. Work Log 추가
-          curl -X POST \
+          echo "📝 Work Log 요청 데이터:"
+          echo "  - Started: ${START_TIME}"
+          echo "  - Time Spent: ${WORK_SECONDS}초 (${WORK_HOURS}h ${WORK_MINUTES}m)"
+
+          WORKLOG_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             -H "Content-Type: application/json" \
             -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
             -d "{
@@ -219,9 +223,17 @@ jobs:
               \"started\": \"${START_TIME}\",
               \"timeSpentSeconds\": ${WORK_SECONDS}
             }" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/worklog"
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/worklog")
 
-          echo "✅ Work Log 추가 완료"
+          HTTP_CODE=$(echo "$WORKLOG_RESPONSE" | tail -n1)
+          RESPONSE_BODY=$(echo "$WORKLOG_RESPONSE" | sed '$d')
+
+          if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Work Log 추가 완료 (HTTP $HTTP_CODE)"
+          else
+            echo "❌ Work Log 추가 실패 (HTTP $HTTP_CODE)"
+            echo "응답: $RESPONSE_BODY"
+          fi
 
           # 3. 상태를 "Done"으로 변경
           CONFIG_FILE="scripts/jira/jira-workflow-config.json"
