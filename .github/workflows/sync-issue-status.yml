@@ -8,15 +8,13 @@ jobs:
   sync-to-jira:
     name: Sync Issue Status to Jira
     runs-on: ubuntu-latest
-    # work:start, work:end 라벨은 jira-worklog.yml에서 처리하므로 제외
-    # closed 이벤트는 항상 실행 (jira-worklog.yml에서 close하면 여기서 Jira 상태 변경)
+    # work:start, work:end, closed, reopened만 처리
     if: |
       github.event.action == 'closed' || 
       github.event.action == 'reopened' ||
       (github.event_name == 'issues' && 
        github.event.action == 'labeled' && 
-       github.event.label.name != 'work:start' && 
-       github.event.label.name != 'work:end')
+       (github.event.label.name == 'work:start' || github.event.label.name == 'work:end'))
 
     steps:
       # 1. 코드 체크아웃
@@ -66,10 +64,12 @@ jobs:
         if: steps.extract-ticket.outputs.skip != 'true' && steps.load-config.outputs.skip != 'true'
         id: map-status
         run: |
-          LABELS="${{ join(github.event.issue.labels.*.name, ',') }}"
+          LABEL_NAME="${{ github.event.label.name }}"
           IS_CLOSED="${{ github.event.issue.state == 'closed' }}"
+          IS_REOPENED="${{ github.event.action == 'reopened' }}"
 
-          echo "현재 라벨: ${LABELS}"
+          echo "액션: ${{ github.event.action }}"
+          echo "라벨: ${LABEL_NAME}"
           echo "이슈 상태: ${{ github.event.issue.state }}"
           echo ""
 
@@ -77,38 +77,30 @@ jobs:
           CONFIG_FILE="scripts/jira/jira-workflow-config.json"
           START_ID=$(jq -r '.mappings.start // empty' "$CONFIG_FILE")
           END_ID=$(jq -r '.mappings.end // empty' "$CONFIG_FILE")
-          REVIEW_ID=$(jq -r '.mappings.review // empty' "$CONFIG_FILE")
-          BLOCKED_ID=$(jq -r '.mappings.blocked // empty' "$CONFIG_FILE")
 
           echo "📋 설정된 Transition ID:"
           echo "  Start (in progress): $START_ID"
           echo "  End (done): $END_ID"
-          echo "  Review: $REVIEW_ID"
-          echo "  Blocked: $BLOCKED_ID"
           echo ""
 
-          # 라벨에 따라 transition ID 선택
           TRANSITION_ID=""
           COMMENT=""
-          IS_REOPENED="${{ github.event.action == 'reopened' }}"
 
+          # 우선순위에 따라 transition ID 선택
           if [ "$IS_REOPENED" = "true" ]; then
             TRANSITION_ID="$START_ID"
             COMMENT="🔄 Issue가 다시 열렸습니다 - 작업 재개"
           elif [ "$IS_CLOSED" = "true" ]; then
             TRANSITION_ID="$END_ID"
             COMMENT="✅ 작업 완료 (GitHub Issue가 닫혔습니다)"
-          elif echo "$LABELS" | grep -q "in progress"; then
+          elif [ "$LABEL_NAME" = "work:start" ]; then
             TRANSITION_ID="$START_ID"
-            COMMENT="🚀 작업 진행 중"
-          elif echo "$LABELS" | grep -q "review"; then
-            TRANSITION_ID="$REVIEW_ID"
-            COMMENT="👀 리뷰 중"
-          elif echo "$LABELS" | grep -q "blocked"; then
-            TRANSITION_ID="$BLOCKED_ID"
-            COMMENT="🚧 작업 블로킹됨"
+            COMMENT="🚀 작업 시작 - 진행 중"
+          elif [ "$LABEL_NAME" = "work:end" ]; then
+            TRANSITION_ID="$END_ID"
+            COMMENT="✅ 작업 완료"
           else
-            echo "⚠️  매핑할 라벨이 없습니다."
+            echo "⚠️  매핑할 상태를 찾을 수 없습니다."
             echo "skip_update=true" >> $GITHUB_OUTPUT
             exit 0
           fi

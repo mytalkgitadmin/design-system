@@ -77,8 +77,8 @@ jobs:
 
           echo "✅ 작업 타입: $(cat $GITHUB_OUTPUT | grep action | cut -d= -f2)"
 
-      # 4-A. 작업 시작 - Jira 상태를 "진행 중"으로 변경
-      - name: Start work - Update Jira to "In Progress"
+      # 4-A. 작업 시작 - Work Log 기록
+      - name: Start work - Add work log
         if: steps.work-action.outputs.action == 'start' && steps.extract-ticket.outputs.skip != 'true'
         id: start-work
         run: |
@@ -87,60 +87,7 @@ jobs:
 
           echo "🚀 작업 시작 처리 중..."
 
-          # Config 파일에서 Transition ID 읽기
-          CONFIG_FILE="scripts/jira/jira-workflow-config.json"
-
-          if [ -f "$CONFIG_FILE" ]; then
-            TRANSITION_ID=$(jq -r '.mappings.start // empty' "$CONFIG_FILE")
-            
-            if [ -n "$TRANSITION_ID" ] && [ "$TRANSITION_ID" != "null" ]; then
-              echo "✅ 설정된 Transition ID: $TRANSITION_ID"
-            else
-              echo "❌ Config 파일에 start transition ID가 없습니다!"
-              echo "💡 scripts/jira/jira-workflow-config.json 파일을 확인하세요."
-              exit 1
-            fi
-          else
-            echo "❌ Config 파일이 없습니다: $CONFIG_FILE"
-            echo "💡 scripts/jira/jira-workflow-config.json 파일을 생성하세요."
-            exit 1
-          fi
-
-          # 2. 현재 사용자를 담당자로 설정
-          echo ""
-          echo "👤 담당자 할당 중..."
-          MYSELF=$(curl -s -X GET \
-            -H "Content-Type: application/json" \
-            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/myself")
-
-          ACCOUNT_ID=$(echo "$MYSELF" | jq -r '.accountId')
-          DISPLAY_NAME=$(echo "$MYSELF" | jq -r '.displayName')
-
-          echo "  사용자: $DISPLAY_NAME (ID: $ACCOUNT_ID)"
-
-          curl -s -X PUT \
-            -H "Content-Type: application/json" \
-            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-            -d "{\"accountId\": \"${ACCOUNT_ID}\"}" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/assignee" > /dev/null
-
-          echo "✅ 담당자 할당 완료"
-
-          # 3. Transition 실행
-          echo ""
-          echo "🔄 Transition 실행: ID=$TRANSITION_ID"
-
-          curl -s -X POST \
-            -H "Content-Type: application/json" \
-            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-            -d "{\"transition\": {\"id\": \"${TRANSITION_ID}\"}}" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${JIRA_TICKET}/transitions"
-
-          echo "✅ 상태 변경 완료"
-
-          # 4. Work Log 추가 (1초만 기록)
-          echo ""
+          # Work Log 추가 (1초만 기록)
           echo "📝 Work Log 기록 중..."
           curl -s -X POST \
             -H "Content-Type: application/json" \
@@ -154,7 +101,7 @@ jobs:
 
           echo "✅ Work Log 기록 완료"
 
-          # 6. Start date 설정
+          # Start date 설정
           echo ""
           echo "📅 Start date 설정 중..."
           START_DATE=$(date -u +"%Y-%m-%d")
@@ -169,8 +116,8 @@ jobs:
           echo "start_time=${START_TIME}" >> $GITHUB_OUTPUT
           echo "🎉 작업 시작 완료!"
 
-      # 4-B. 작업 종료 - Work Log 기록 및 상태를 "Done"으로 변경
-      - name: End work - Add work log and update to "Done"
+      # 4-B. 작업 종료 - Work Log 기록
+      - name: End work - Add work log
         if: steps.work-action.outputs.action == 'end' && steps.extract-ticket.outputs.skip != 'true'
         id: end-work
         run: |
@@ -240,7 +187,7 @@ jobs:
 
           echo "work_time=${WORK_HOURS}시간 ${WORK_MINUTES}분" >> $GITHUB_OUTPUT
 
-      # 4-C. Issue 닫기 (자동으로 Jira 상태도 변경됨)
+      # 4-C. Issue 닫기 (Jira 상태는 sync-issue-status에서 자동 변경됨)
       - name: Close GitHub Issue
         if: steps.work-action.outputs.action == 'end' && steps.extract-ticket.outputs.skip != 'true'
         run: |
