@@ -167,16 +167,20 @@ jobs:
           echo "  사용 가능한 transitions:"
           echo "$AVAILABLE_TRANS" | jq -r '.transitions[] | "    - \(.name) → \(.to.name) (ID: \(.id))"'
 
+          # Transition 이름으로 찾기 (우선순위: 이름 > 목표 상태)
           START_ID=$(echo "$AVAILABLE_TRANS" | jq -r '.transitions[] | select(
+            (.name | ascii_downcase) | contains("start") or
+            (.name | ascii_downcase) | contains("progress") or
+            (.name | ascii_downcase) | contains("시작") or
+            (.name | ascii_downcase) | contains("진행") or
             (.to.name | ascii_downcase) == "in progress" or
-            (.to.name | ascii_downcase) == "진행 중" or
-            (.to.name | ascii_downcase) == "진행중" or
-            (.to.name | ascii_downcase) == "개발 중"
+            (.to.name | ascii_downcase) == "진행 중"
           ) | .id' | head -n 1)
 
           if [ -n "$START_ID" ] && [ "$START_ID" != "null" ]; then
             START_STATUS=$(echo "$AVAILABLE_TRANS" | jq -r ".transitions[] | select(.id == \"$START_ID\") | .to.name")
-            echo "  ✅ 작업 시작: $CURRENT_STATUS → $START_STATUS (ID: $START_ID)"
+            START_TRANS_NAME=$(echo "$AVAILABLE_TRANS" | jq -r ".transitions[] | select(.id == \"$START_ID\") | .name")
+            echo "  ✅ 작업 시작: $CURRENT_STATUS → $START_STATUS (Transition: $START_TRANS_NAME, ID: $START_ID)"
             
             # "진행 중" 상태로 이동
             curl -s -X POST \
@@ -209,17 +213,24 @@ jobs:
           echo "  사용 가능한 transitions:"
           echo "$PROGRESS_TRANS" | jq -r '.transitions[] | "    - \(.name) → \(.to.name) (ID: \(.id))"'
 
+          # Transition 이름으로 찾기 (우선순위: 이름 > 목표 상태)
           END_ID=$(echo "$PROGRESS_TRANS" | jq -r '.transitions[] | select(
+            (.name | ascii_downcase) | contains("resolve") or
+            (.name | ascii_downcase) | contains("done") or
+            (.name | ascii_downcase) | contains("close") or
+            (.name | ascii_downcase) | contains("해결") or
+            (.name | ascii_downcase) | contains("완료") or
+            (.name | ascii_downcase) | contains("종료") or
             (.to.name | ascii_downcase) == "done" or
             (.to.name | ascii_downcase) == "완료" or
             (.to.name | ascii_downcase) == "해결됨" or
-            (.to.name | ascii_downcase) == "종료" or
-            (.to.name | ascii_downcase) == "closed"
+            (.to.name | ascii_downcase) == "종료"
           ) | .id' | head -n 1)
 
           if [ -n "$END_ID" ] && [ "$END_ID" != "null" ]; then
             END_STATUS=$(echo "$PROGRESS_TRANS" | jq -r ".transitions[] | select(.id == \"$END_ID\") | .to.name")
-            echo "  ✅ 작업 완료: $CURRENT_STATUS → $END_STATUS (ID: $END_ID)"
+            END_TRANS_NAME=$(echo "$PROGRESS_TRANS" | jq -r ".transitions[] | select(.id == \"$END_ID\") | .name")
+            echo "  ✅ 작업 완료: $CURRENT_STATUS → $END_STATUS (Transition: $END_TRANS_NAME, ID: $END_ID)"
           else
             echo "  ⚠️  작업 완료 transition을 찾을 수 없습니다"
             END_STATUS=""
@@ -261,6 +272,8 @@ jobs:
           echo "blocked_id=$BLOCKED_ID" >> $GITHUB_OUTPUT
           echo "start_status=$START_STATUS" >> $GITHUB_OUTPUT
           echo "end_status=$END_STATUS" >> $GITHUB_OUTPUT
+          echo "start_trans_name=$START_TRANS_NAME" >> $GITHUB_OUTPUT
+          echo "end_trans_name=$END_TRANS_NAME" >> $GITHUB_OUTPUT
 
       - name: Create workflow config file
         run: |
@@ -280,6 +293,8 @@ jobs:
 
           START_STATUS="${{ steps.auto-detect.outputs.start_status }}"
           END_STATUS="${{ steps.auto-detect.outputs.end_status }}"
+          START_TRANS_NAME="${{ steps.auto-detect.outputs.start_trans_name }}"
+          END_TRANS_NAME="${{ steps.auto-detect.outputs.end_trans_name }}"
 
           # null 또는 빈 값 처리
           [ -z "$START_ID" ] || [ "$START_ID" = "null" ] && START_ID=""
@@ -312,6 +327,10 @@ jobs:
             "targetStatuses": {
               "start": "$START_STATUS",
               "end": "$END_STATUS"
+            },
+            "transitionNames": {
+              "start": "$START_TRANS_NAME",
+              "end": "$END_TRANS_NAME"
             }
           }
           EOF
