@@ -71,7 +71,8 @@ const meta = {
         color.indigo['600'],
         color.green['600'],
       ],
-      description: '시맨틱 프리셋(primary, secondary 등) 또는 토큰 컬러 선택. 커스텀 hex 값은 직접 입력 가능',
+      description:
+        '시맨틱 프리셋(primary, secondary 등) 또는 토큰 컬러 선택. 커스텀 hex 값은 직접 입력 가능',
     },
   },
 } satisfies Meta<typeof Icon>;
@@ -95,7 +96,14 @@ export const SemanticColors: Story = {
     name: 'tabler:check',
   },
   render: () => (
-    <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
+    <div
+      style={{
+        display: 'flex',
+        gap: '24px',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+      }}
+    >
       <div style={{ textAlign: 'center' }}>
         <Icon name='tabler:check' size={32} color='primary' />
         <p style={{ marginTop: '8px', fontSize: '12px' }}>Primary</p>
@@ -130,8 +138,17 @@ export const CustomColors: Story = {
   render: () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div>
-        <h3 style={{ marginBottom: '12px', fontSize: '14px', fontWeight: 600 }}>디자인 토큰 색상</h3>
-        <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <h3 style={{ marginBottom: '12px', fontSize: '14px', fontWeight: 600 }}>
+          디자인 토큰 색상
+        </h3>
+        <div
+          style={{
+            display: 'flex',
+            gap: '24px',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
           <div style={{ textAlign: 'center' }}>
             <Icon name='tabler:check' size={32} color={color.blue['600']} />
             <p style={{ marginTop: '8px', fontSize: '12px' }}>Blue 600</p>
@@ -151,8 +168,17 @@ export const CustomColors: Story = {
         </div>
       </div>
       <div>
-        <h3 style={{ marginBottom: '12px', fontSize: '14px', fontWeight: 600 }}>커스텀 Hex 값</h3>
-        <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <h3 style={{ marginBottom: '12px', fontSize: '14px', fontWeight: 600 }}>
+          커스텀 Hex 값
+        </h3>
+        <div
+          style={{
+            display: 'flex',
+            gap: '24px',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
           <div style={{ textAlign: 'center' }}>
             <Icon name='tabler:check' size={32} color='#8facff' />
             <p style={{ marginTop: '8px', fontSize: '12px' }}>Custom Blue</p>

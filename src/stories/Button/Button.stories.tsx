@@ -42,7 +42,7 @@ const meta = {
   parameters: {
     layout: 'centered',
   },
-  tags: ['autodocs'],
+  tags: ['autodocs', '!dev'],
   argTypes: {
     variant: {
       control: 'select',
@@ -282,28 +282,94 @@ export const WithIcon: Story = {
   render: () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div>
-        <h3 style={{ marginBottom: '12px', fontSize: '14px', fontWeight: 600 }}>Solid Variant</h3>
+        <h3 style={{ marginBottom: '12px', fontSize: '14px', fontWeight: 600 }}>
+          Solid Variant
+        </h3>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <Button variant='solid' size='md' color='primary' label='Check' leftIcon='tabler:check' />
-          <Button variant='solid' size='md' color='success' label='Plus' leftIcon='tabler:plus' />
-          <Button variant='solid' size='md' color='danger' label='Trash' leftIcon='tabler:trash' />
-          <Button variant='solid' size='md' color='secondary' label='Search' leftIcon='tabler:search' />
+          <Button
+            variant='solid'
+            size='md'
+            color='primary'
+            label='Check'
+            leftIcon='tabler:check'
+          />
+          <Button
+            variant='solid'
+            size='md'
+            color='success'
+            label='Plus'
+            leftIcon='tabler:plus'
+          />
+          <Button
+            variant='solid'
+            size='md'
+            color='danger'
+            label='Trash'
+            leftIcon='tabler:trash'
+          />
+          <Button
+            variant='solid'
+            size='md'
+            color='secondary'
+            label='Search'
+            leftIcon='tabler:search'
+          />
         </div>
       </div>
       <div>
-        <h3 style={{ marginBottom: '12px', fontSize: '14px', fontWeight: 600 }}>Outline Variant</h3>
+        <h3 style={{ marginBottom: '12px', fontSize: '14px', fontWeight: 600 }}>
+          Outline Variant
+        </h3>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <Button variant='outline' size='md' color='primary' label='Download' leftIcon='tabler:download' />
-          <Button variant='outline' size='md' color='success' label='Upload' leftIcon='tabler:upload' />
-          <Button variant='outline' size='md' color='warning' label='Edit' leftIcon='tabler:edit' />
+          <Button
+            variant='outline'
+            size='md'
+            color='primary'
+            label='Download'
+            leftIcon='tabler:download'
+          />
+          <Button
+            variant='outline'
+            size='md'
+            color='success'
+            label='Upload'
+            leftIcon='tabler:upload'
+          />
+          <Button
+            variant='outline'
+            size='md'
+            color='warning'
+            label='Edit'
+            leftIcon='tabler:edit'
+          />
         </div>
       </div>
       <div>
-        <h3 style={{ marginBottom: '12px', fontSize: '14px', fontWeight: 600 }}>Different Sizes</h3>
+        <h3 style={{ marginBottom: '12px', fontSize: '14px', fontWeight: 600 }}>
+          Different Sizes
+        </h3>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <Button variant='solid' size='sm' color='primary' label='Small' leftIcon='tabler:check' />
-          <Button variant='solid' size='md' color='primary' label='Medium' leftIcon='tabler:check' />
-          <Button variant='solid' size='lg' color='primary' label='Large' leftIcon='tabler:check' />
+          <Button
+            variant='solid'
+            size='sm'
+            color='primary'
+            label='Small'
+            leftIcon='tabler:check'
+          />
+          <Button
+            variant='solid'
+            size='md'
+            color='primary'
+            label='Medium'
+            leftIcon='tabler:check'
+          />
+          <Button
+            variant='solid'
+            size='lg'
+            color='primary'
+            label='Large'
+            leftIcon='tabler:check'
+          />
         </div>
       </div>
     </div>

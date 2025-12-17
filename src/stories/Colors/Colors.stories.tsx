@@ -36,7 +36,7 @@ const meta = {
   parameters: {
     layout: 'padded',
   },
-  tags: ['autodocs'],
+  tags: ['autodocs', '!dev'],
 } satisfies Meta<typeof Palette>;
 
 export default meta;
