@@ -1,0 +1,61 @@
+name: Jira Smart Commit
+
+on:
+  push:
+    branches:
+      - '**'  # 모든 브랜치
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+
+jobs:
+  process-smart-commits:
+    name: Process Smart Commits
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # 이전 커밋 포함
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Get commit messages
+        id: commits
+        run: |
+          # 푸시된 커밋들의 정보 가져오기
+          if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            # 새 브랜치인 경우 최근 1개 커밋만
+            git log -1 --pretty=format:"%H|%s|%b" > commits.txt
+          else
+            # 기존 브랜치인 경우 before..after 범위
+            git log ${{ github.event.before }}..${{ github.event.after }} --pretty=format:"%H|%s|%b" > commits.txt
+          fi
+          
+          echo "커밋 개수: $(wc -l < commits.txt)"
+          cat commits.txt
+
+      - name: Process smart commits
+        run: node scripts/jira/process-smart-commits.js
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_REF: ${{ github.ref }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 🎯 Jira Smart Commit 처리 완료" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Commits:** $(wc -l < commits.txt)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "자세한 내용은 워크플로우 로그를 확인하세요." >> $GITHUB_STEP_SUMMARY
+

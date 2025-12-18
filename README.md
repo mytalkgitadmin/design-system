@@ -11,9 +11,9 @@ npm run storybook
 
 ---
 
-## 📝 이슈 생성 및 Jira 연동
+## 📝 Jira 연동
 
-### 처음 설정 (최초 1회)
+### 초기 설정 (최초 1회)
 
 #### 1. GitHub CLI 로그인
 
@@ -21,29 +21,7 @@ npm run storybook
 gh auth login
 ```
 
-#### 2. .env 파일 생성 (로컬 개발용)
-
-프로젝트 루트에 `.env` 파일을 생성하고 Jira 정보를 입력하세요:
-
-```bash
-# .env 파일 생성
-cp .env.example .env
-```
-
-`.env` 파일 내용:
-
-```bash
-JIRA_BASE_URL=https://your-domain.atlassian.net
-JIRA_USER_EMAIL=your-email@company.com
-JIRA_API_TOKEN=your-jira-api-token
-JIRA_PROJECT=FMTW
-```
-
-> 💡 **보안**: `.env` 파일은 git에 커밋하지 않습니다 (`.gitignore`에 포함됨)
->
-> 💡 Jira API 토큰 생성: https://id.atlassian.com/manage-profile/security/api-tokens
-
-#### 3. GitHub Secrets 설정 (관리자, 최초 1회)
+#### 2. GitHub Secrets 설정 (관리자)
 
 GitHub Actions가 자동으로 Jira 연동하려면 Secrets 설정이 필요합니다:
 
@@ -57,44 +35,82 @@ GitHub Actions가 자동으로 Jira 연동하려면 Secrets 설정이 필요합�
 | `JIRA_PROJECT`    | Jira 프로젝트 키 | `FMTW`                              |
 
 > 💡 **Secrets는 관리자가 한 번만 설정하면, 모든 팀원이 사용할 수 있습니다**
+>
+> 💡 Jira API 토큰 생성: https://id.atlassian.com/manage-profile/security/api-tokens
 
-### 이슈 생성
+### 주요 기능
+
+#### 1. Jira 티켓 생성
+
+CLI를 통해 대화형으로 Jira 티켓을 생성합니다:
 
 ```bash
-npm run issue
+npm run jira:create
 ```
 
-**자동으로 처리되는 작업**:
+- 이슈 제목, 설명, 타입(Task/Story/Bug) 선택
+- 상위 티켓 연결 가능
+- GitHub Actions를 통해 자동 생성
 
-- ✅ GitHub 이슈 생성
-- ✅ Jira 티켓 생성
-- ✅ 브랜치 생성 (`JIRA-123-feature-name`)
+#### 2. 스마트 커밋
 
-> 💡 생성된 브랜치는 GitHub Actions가 자동으로 생성하며, 로컬에서 체크아웃하려면:
->
-> ```bash
-> git fetch origin
-> git checkout -b FMTW-123-feature-name origin/FMTW-123-feature-name
-> ```
+커밋 메시지에 명령어를 포함하여 자동으로 Jira 티켓을 업데이트합니다:
+
+```bash
+git commit -m "FMTW-123 버튼 컴포넌트 추가 #comment UI 개선 완료"
+```
+
+지원하는 명령어:
+
+- `#comment` - 코멘트 추가
+- `#time` - 작업 시간 기록 (1h 30m)
+- `#start` - 작업 시작 상태로 전환
+- `#resolve` - 완료 상태로 전환
+- `#close` - 이슈 닫기
+
+> 📖 자세한 사용법: [scripts/jira/README.md](scripts/jira/README.md)
 
 ---
 
-## 🔄 워크플로우
+## 🚀 CI/CD 자동 배포
 
+GitHub Actions를 통해 Storybook과 Chromatic이 자동으로 배포됩니다.
+
+### 배포 플로우
+
+```mermaid
+graph LR
+    A[코드 작성] --> B[develop으로 PR]
+    B --> C[코드 리뷰]
+    C --> D[develop에 Merge]
+    D --> E[CI: Storybook 빌드]
+    E --> F[Chromatic 자동 배포]
 ```
-npm run issue
-    ↓
-GitHub 이슈 생성
-    ↓
-GitHub Actions 자동 실행
-    ├─ Jira 티켓 생성 (FMTW-123)
-    ├─ 브랜치 생성 (FMTW-123-feature-name)
-    └─ 이슈/티켓 연결
-    ↓
-로컬 브랜치 자동 체크아웃
-    ↓
-작업 시작! 🎉
-```
+
+**자동 실행 조건:**
+
+- develop 브랜치에 merge(push) 시
+
+**실행 단계:**
+
+1. Storybook 빌드 검증
+2. Chromatic 배포 및 비주얼 회귀 테스트
+3. 자동으로 baseline 승인
+
+### 초기 설정 (관리자, 최초 1회)
+
+GitHub Secrets에 Chromatic 토큰을 등록해야 합니다:
+
+**Settings** → **Secrets and variables** → **Actions** → **New repository secret**
+
+| Secret Name               | 값                     |
+| ------------------------- | ---------------------- |
+| `CHROMATIC_PROJECT_TOKEN` | `chpt_a7a4f2b4972968e` |
+
+### 배포 상태 확인
+
+- GitHub Actions: `Actions` 탭에서 워크플로우 실행 상태 확인
+- Chromatic: [chromatic.com](https://www.chromatic.com/)에서 비주얼 변경사항 확인
 
 ---
 
@@ -107,15 +123,12 @@ npm run storybook          # 개발 서버
 npm run build-storybook    # 빌드
 ```
 
-### Jira 연동
+### Jira
 
 ```bash
-npm run issue              # 이슈 생성
-npm run issue:start        # 작업 시작 (Work Log)
-npm run issue:end          # 작업 종료 (Work Log)
+npm run jira:create        # Jira 티켓 생성
+npm run commit:help        # 스마트 커밋 도움말
 ```
-
-> 📖 Work Log 상세 가이드: [scripts/jira/WORK_LOG.md](scripts/jira/WORK_LOG.md)
 
 ---
 
@@ -127,9 +140,9 @@ design-system/
 │   ├── stories/              # Storybook 컴포넌트
 │   └── figma/                # 디자인 토큰
 ├── scripts/jira/             # Jira 연동 스크립트
-│   ├── create-issue.js       # 이슈 생성
-│   ├── issue-config.json     # 기본 설정
-│   └── README.md             # 상세 가이드
+│   ├── create-jira-only.js          # 티켓 생성
+│   ├── process-smart-commits.js     # 스마트 커밋 처리
+│   └── README.md                    # 상세 가이드
 ├── .github/workflows/        # GitHub Actions
 └── package.json
 ```
@@ -138,12 +151,13 @@ design-system/
 
 ## 🤝 기여하기
 
-1. 이슈 생성: `npm run issue`
-2. 브랜치에서 작업
-3. 커밋 및 푸시
-4. Pull Request 생성
-
-**상세 문서**: [scripts/jira/README.md](scripts/jira/README.md)
+1. Jira 티켓 생성: `npm run jira:create`
+2. feature 브랜치에서 작업
+3. 스마트 커밋으로 커밋 및 푸시
+4. develop으로 Pull Request 생성
+5. 코드 리뷰 및 승인
+6. develop에 Merge
+7. CI 자동 실행: Storybook 빌드 + Chromatic 배포 ✅
 
 ---
 

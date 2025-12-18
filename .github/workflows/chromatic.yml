@@ -1,0 +1,52 @@
+name: Chromatic Deployment
+
+on:
+  # develop 브랜치에 push 시 (merge 후) Chromatic 배포
+  push:
+    branches: [develop]
+
+jobs:
+  chromatic:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Chromatic에서 변경사항 비교를 위해 전체 히스토리 필요
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: Storybook 빌드 검증
+        run: npm run build-storybook
+
+      - name: Chromatic 배포
+        id: chromatic
+        uses: chromaui/action@latest
+        with:
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          # develop 브랜치 배포 시 자동으로 baseline 승인
+          autoAcceptChanges: true
+
+      - name: 배포 결과 Summary 생성
+        if: always()
+        run: |
+          echo "## 🎨 Chromatic 배포 결과" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 배포 정보" >> $GITHUB_STEP_SUMMARY
+          echo "| 항목 | 내용 |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌐 Storybook | [배포된 Storybook 보기](${{ steps.chromatic.outputs.storybookUrl }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔍 Chromatic Build | [빌드 상세보기](${{ steps.chromatic.outputs.buildUrl }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📚 테스트된 스토리 | ${{ steps.chromatic.outputs.specCount }}개 |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🎯 변경사항 | ${{ steps.chromatic.outputs.changeCount }}개 |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ develop 브랜치 배포 완료" >> $GITHUB_STEP_SUMMARY
+          echo "Storybook이 Chromatic에 성공적으로 배포되었습니다." >> $GITHUB_STEP_SUMMARY

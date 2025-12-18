@@ -2,6 +2,7 @@
   "mappings": {
     "init": "711",
     "start": "4",
-    "end": "5"
+    "end": "5",
+    "completed": "5"
   }
 }

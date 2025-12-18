@@ -67,7 +67,8 @@ const Button = ({
     [buttonVars.defaultColor]: colorScheme.default,
     [buttonVars.hoverColor]: colorScheme.hover,
     [buttonVars.activeColor]: colorScheme.active,
-    [buttonVars.textColor]: variant === 'solid' ? '#ffffff' : colorScheme.default,
+    [buttonVars.textColor]:
+      variant === 'solid' ? '#ffffff' : colorScheme.default,
     [buttonVars.disabledColor]: theme.brand1.btn.disabled,
   });
 

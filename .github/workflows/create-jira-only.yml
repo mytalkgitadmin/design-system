@@ -1,0 +1,150 @@
+name: Create Jira Issue (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: '이슈 제목'
+        required: true
+        type: string
+      description:
+        description: '이슈 설명'
+        required: false
+        type: string
+        default: ''
+      parent_key:
+        description: '상위 티켓 번호 (예: PRJ-123)'
+        required: false
+        type: string
+        default: ''
+      issue_type:
+        description: '이슈 타입'
+        required: true
+        type: choice
+        options:
+          - Task
+          - Story
+          - Bug
+        default: Task
+
+jobs:
+  create-jira-only:
+    name: Create Jira Issue
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Jira
+        uses: atlassian/gajira-login@v3
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+
+      - name: Create Jira Issue
+        id: create-jira
+        uses: atlassian/gajira-create@v3
+        with:
+          project: ${{ secrets.JIRA_PROJECT }}
+          issuetype: ${{ inputs.issue_type }}
+          summary: "${{ inputs.title }}"
+          description: "${{ inputs.description }}"
+
+      - name: Link to parent issue
+        if: inputs.parent_key != ''
+        continue-on-error: true
+        run: |
+          PARENT_KEY="${{ inputs.parent_key }}"
+          ISSUE_KEY="${{ steps.create-jira.outputs.issue }}"
+
+          if [ -n "$PARENT_KEY" ] && [ "$PARENT_KEY" != "null" ]; then
+            echo "🔗 Linking to parent: $PARENT_KEY"
+            
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
+              -H "Content-Type: application/json" \
+              -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+              -d "{\"fields\":{\"parent\":{\"key\":\"${PARENT_KEY}\"}}}" \
+              "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${ISSUE_KEY}")
+            
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
+            if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Successfully linked to parent: $PARENT_KEY"
+            else
+              echo "⚠️  Failed to link parent (HTTP $HTTP_CODE). Task created without parent."
+            fi
+          fi
+
+      - name: Set Jira ticket to init status
+        continue-on-error: true
+        run: |
+          ISSUE_KEY="${{ steps.create-jira.outputs.issue }}"
+
+          if [ -f "scripts/jira/jira-workflow-config.json" ]; then
+            INIT_TRANSITION_ID=$(jq -r '.mappings.init // ""' scripts/jira/jira-workflow-config.json)
+            
+            if [ -n "$INIT_TRANSITION_ID" ] && [ "$INIT_TRANSITION_ID" != "null" ]; then
+              echo "🔄 Jira 티켓 상태를 init으로 변경 중... (Transition ID: ${INIT_TRANSITION_ID})"
+              
+              RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+                -H "Content-Type: application/json" \
+                -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+                -d "{\"transition\":{\"id\":\"${INIT_TRANSITION_ID}\"}}" \
+                "${{ secrets.JIRA_BASE_URL }}/rest/api/2/issue/${ISSUE_KEY}/transitions")
+              
+              HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
+              if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
+                echo "✅ Jira 티켓 상태가 init으로 변경되었습니다"
+              else
+                echo "⚠️  Jira 상태 변경 실패 (HTTP $HTTP_CODE). 기본 상태로 유지됩니다."
+              fi
+            else
+              echo "⏭️  init transition ID가 설정되지 않았습니다. 상태 변경을 건너뜁니다."
+            fi
+          else
+            echo "⏭️  jira-workflow-config.json 파일이 없습니다. 상태 변경을 건너뜁니다."
+          fi
+
+      - name: Save Jira ticket info to file
+        run: |
+          echo "${{ steps.create-jira.outputs.issue }}" > jira-ticket.txt
+          echo "${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.create-jira.outputs.issue }}" >> jira-ticket.txt
+          if [ -n "${{ inputs.parent_key }}" ]; then
+            echo "${{ inputs.parent_key }}" >> jira-ticket.txt
+          fi
+          
+          echo "✅ Jira Issue Created: ${{ steps.create-jira.outputs.issue }}"
+          echo "🔗 Issue URL: ${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.create-jira.outputs.issue }}"
+          
+          if [ -n "${{ inputs.parent_key }}" ]; then
+            echo "📎 Parent Ticket: ${{ inputs.parent_key }}"
+          fi
+
+      - name: Upload Jira ticket info
+        uses: actions/upload-artifact@v4
+        with:
+          name: jira-ticket-info
+          path: jira-ticket.txt
+          retention-days: 1
+
+      - name: Create summary comment
+        run: |
+          ISSUE_KEY="${{ steps.create-jira.outputs.issue }}"
+          ISSUE_URL="${{ secrets.JIRA_BASE_URL }}/browse/${ISSUE_KEY}"
+          
+          echo "## 🎉 Jira 이슈 생성 완료" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Jira Ticket:** [${ISSUE_KEY}](${ISSUE_URL})" >> $GITHUB_STEP_SUMMARY
+          echo "**Issue Type:** ${{ inputs.issue_type }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -n "${{ inputs.parent_key }}" ]; then
+            echo "**Parent:** ${{ inputs.parent_key }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📌 다음 단계" >> $GITHUB_STEP_SUMMARY
+          echo "1. Jira에서 이슈 확인" >> $GITHUB_STEP_SUMMARY
+          echo "2. 필요시 작업 시작" >> $GITHUB_STEP_SUMMARY
+          echo "3. 코드 작업 진행" >> $GITHUB_STEP_SUMMARY
+
