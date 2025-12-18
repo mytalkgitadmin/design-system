@@ -1,0 +1,41 @@
+name: Chromatic CI/CD
+
+on:
+  # main 브랜치로 향하는 PR 생성/업데이트 시
+  pull_request:
+    branches: [main]
+  # main 브랜치에 push 시 (merge 후)
+  push:
+    branches: [main]
+
+jobs:
+  chromatic:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Chromatic에서 변경사항 비교를 위해 전체 히스토리 필요
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: Storybook 빌드 검증
+        run: npm run build-storybook
+
+      - name: Chromatic 배포
+        uses: chromaui/action@latest
+        with:
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          # PR인 경우 변경사항이 있어도 실패하지 않음
+          exitZeroOnChanges: ${{ github.event_name == 'pull_request' }}
+          # main 브랜치인 경우 자동으로 baseline 승인
+          autoAcceptChanges: ${{ github.ref == 'refs/heads/main' }}
+

@@ -72,6 +72,49 @@ git commit -m "FMTW-123 버튼 컴포넌트 추가 #comment UI 개선 완료"
 
 ---
 
+## 🚀 CI/CD 자동 배포
+
+GitHub Actions를 통해 Storybook과 Chromatic이 자동으로 배포됩니다.
+
+### 배포 플로우
+
+```mermaid
+graph LR
+    A[코드 작성] --> B[PR 생성]
+    B --> C[CI: 빌드 + Chromatic]
+    C --> D[비주얼 리뷰]
+    D --> E[Merge]
+    E --> F[main 배포]
+```
+
+**자동 실행 조건:**
+
+- main 브랜치로 향하는 PR 생성/업데이트 시
+- main 브랜치에 merge 시
+
+**실행 단계:**
+
+1. Storybook 빌드 검증
+2. Chromatic 배포 및 비주얼 회귀 테스트
+3. PR: 변경사항 리뷰 / main: 자동 승인
+
+### 초기 설정 (관리자, 최초 1회)
+
+GitHub Secrets에 Chromatic 토큰을 등록해야 합니다:
+
+**Settings** → **Secrets and variables** → **Actions** → **New repository secret**
+
+| Secret Name               | 값                     |
+| ------------------------- | ---------------------- |
+| `CHROMATIC_PROJECT_TOKEN` | `chpt_a7a4f2b4972968e` |
+
+### 배포 상태 확인
+
+- GitHub Actions: `Actions` 탭에서 워크플로우 실행 상태 확인
+- Chromatic: [chromatic.com](https://www.chromatic.com/)에서 비주얼 변경사항 확인
+
+---
+
 ## 🛠️ 주요 명령어
 
 ### Storybook
@@ -110,9 +153,12 @@ design-system/
 ## 🤝 기여하기
 
 1. Jira 티켓 생성: `npm run jira:create`
-2. 브랜치에서 작업
+2. feature 브랜치에서 작업
 3. 스마트 커밋으로 커밋 및 푸시
-4. Pull Request 생성
+4. main으로 Pull Request 생성
+5. CI 자동 실행: Storybook 빌드 + Chromatic 배포
+6. 비주얼 변경사항 확인 및 코드 리뷰
+7. Merge → main 브랜치에 자동 배포
 
 ---
 
