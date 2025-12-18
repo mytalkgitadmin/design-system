@@ -1,4 +1,4 @@
-// Button.tsx
+// Button.tsx ..
 import { buttonStyle, buttonVars } from "./Button.css";
 import { assignInlineVars } from "@vanilla-extract/dynamic";
 import Icon from "../Icon";
