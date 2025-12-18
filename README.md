@@ -128,7 +128,7 @@ design-system/
 │   └── figma/                # 디자인 토큰
 ├── scripts/jira/             # Jira 연동 스크립트
 │   ├── create-issue.js       # 이슈 생성
-│   ├── issue-config.json     # 기본 설정
+│   ├── jira-create-config.json     # 기본 설정
 │   └── README.md             # 상세 가이드
 ├── .github/workflows/        # GitHub Actions
 └── package.json

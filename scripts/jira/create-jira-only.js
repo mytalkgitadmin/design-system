@@ -27,7 +27,7 @@ async function ask(question, defaultValue = "") {
 }
 
 async function loadIssueConfig() {
-  const configPath = path.join(__dirname, "issue-config.json");
+  const configPath = path.join(__dirname, "jira-create-config.json");
   try {
     const configData = fs.readFileSync(configPath, "utf-8");
     return JSON.parse(configData);
