@@ -80,23 +80,22 @@ GitHub Actions를 통해 Storybook과 Chromatic이 자동으로 배포됩니다.
 
 ```mermaid
 graph LR
-    A[코드 작성] --> B[PR 생성]
-    B --> C[CI: 빌드 + Chromatic]
-    C --> D[비주얼 리뷰]
-    D --> E[Merge]
-    E --> F[main 배포]
+    A[코드 작성] --> B[develop으로 PR]
+    B --> C[코드 리뷰]
+    C --> D[develop에 Merge]
+    D --> E[CI: Storybook 빌드]
+    E --> F[Chromatic 자동 배포]
 ```
 
 **자동 실행 조건:**
 
-- main 브랜치로 향하는 PR 생성/업데이트 시
-- main 브랜치에 merge 시
+- develop 브랜치에 merge(push) 시
 
 **실행 단계:**
 
 1. Storybook 빌드 검증
 2. Chromatic 배포 및 비주얼 회귀 테스트
-3. PR: 변경사항 리뷰 / main: 자동 승인
+3. 자동으로 baseline 승인
 
 ### 초기 설정 (관리자, 최초 1회)
 
@@ -155,10 +154,10 @@ design-system/
 1. Jira 티켓 생성: `npm run jira:create`
 2. feature 브랜치에서 작업
 3. 스마트 커밋으로 커밋 및 푸시
-4. main으로 Pull Request 생성
-5. CI 자동 실행: Storybook 빌드 + Chromatic 배포
-6. 비주얼 변경사항 확인 및 코드 리뷰
-7. Merge → main 브랜치에 자동 배포
+4. develop으로 Pull Request 생성
+5. 코드 리뷰 및 승인
+6. develop에 Merge
+7. CI 자동 실행: Storybook 빌드 + Chromatic 배포 ✅
 
 ---
 

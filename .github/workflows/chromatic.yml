@@ -1,12 +1,9 @@
-name: Chromatic CI/CD
+name: Chromatic Deployment
 
 on:
-  # main 브랜치로 향하는 PR 생성/업데이트 시
-  pull_request:
-    branches: [main]
-  # main 브랜치에 push 시 (merge 후)
+  # develop 브랜치에 push 시 (merge 후) Chromatic 배포
   push:
-    branches: [main]
+    branches: [develop]
 
 jobs:
   chromatic:
@@ -35,10 +32,8 @@ jobs:
         uses: chromaui/action@latest
         with:
           projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
-          # PR인 경우 변경사항이 있어도 실패하지 않음
-          exitZeroOnChanges: ${{ github.event_name == 'pull_request' }}
-          # main 브랜치인 경우 자동으로 baseline 승인
-          autoAcceptChanges: ${{ github.ref == 'refs/heads/main' }}
+          # develop 브랜치 배포 시 자동으로 baseline 승인
+          autoAcceptChanges: true
 
       - name: 배포 결과 Summary 생성
         if: always()
@@ -53,74 +48,5 @@ jobs:
           echo "| 📚 테스트된 스토리 | ${{ steps.chromatic.outputs.specCount }}개 |" >> $GITHUB_STEP_SUMMARY
           echo "| 🎯 변경사항 | ${{ steps.chromatic.outputs.changeCount }}개 |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [ "${{ steps.chromatic.outputs.changeCount }}" -gt "0" ]; then
-            echo "### ⚠️ 비주얼 변경사항 감지" >> $GITHUB_STEP_SUMMARY
-            echo "UI 변경사항이 발견되었습니다. [Chromatic](${{ steps.chromatic.outputs.buildUrl }})에서 확인 후 승인해주세요." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### ✅ 비주얼 변경사항 없음" >> $GITHUB_STEP_SUMMARY
-            echo "이전 빌드와 비교하여 UI 변경사항이 없습니다." >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: PR에 배포 정보 코멘트 추가
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const changeCount = '${{ steps.chromatic.outputs.changeCount }}';
-            const specCount = '${{ steps.chromatic.outputs.specCount }}';
-            const storybookUrl = '${{ steps.chromatic.outputs.storybookUrl }}';
-            const buildUrl = '${{ steps.chromatic.outputs.buildUrl }}';
-
-            let statusEmoji = '✅';
-            let statusText = '비주얼 변경사항 없음';
-            let additionalInfo = '이전 빌드와 비교하여 UI 변경사항이 없습니다.';
-
-            if (parseInt(changeCount) > 0) {
-              statusEmoji = '⚠️';
-              statusText = `비주얼 변경사항 ${changeCount}개 감지`;
-              additionalInfo = `UI 변경사항이 발견되었습니다. [Chromatic](${buildUrl})에서 확인 후 승인해주세요.`;
-            }
-
-            const comment = `## 🎨 Chromatic 배포 완료
-
-            ${statusEmoji} **${statusText}**
-
-            ### 📊 배포 정보
-            | 항목 | 내용 |
-            |------|------|
-            | 🌐 Storybook | [배포된 Storybook 보기](${storybookUrl}) |
-            | 🔍 Chromatic Build | [빌드 상세보기](${buildUrl}) |
-            | 📚 테스트된 스토리 | ${specCount}개 |
-            | 🎯 변경사항 | ${changeCount}개 |
-
-            ${additionalInfo}`;
-
-            // 기존 코멘트 찾기
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-
-            const botComment = comments.find(comment => 
-              comment.user.type === 'Bot' && 
-              comment.body.includes('🎨 Chromatic 배포 완료')
-            );
-
-            // 기존 코멘트가 있으면 업데이트, 없으면 새로 생성
-            if (botComment) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body: comment
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: comment
-              });
-            }
+          echo "### ✅ develop 브랜치 배포 완료" >> $GITHUB_STEP_SUMMARY
+          echo "Storybook이 Chromatic에 성공적으로 배포되었습니다." >> $GITHUB_STEP_SUMMARY
