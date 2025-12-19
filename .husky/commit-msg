@@ -1,5 +1,5 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
+# 1. Commitlint로 커밋 메시지 형식 검증
+npx --no -- commitlint --edit "$1"
 
+# 2. Jira 스마트 커밋 감지 및 안내
 node scripts/jira/validate-commit-msg.js "$1"
-

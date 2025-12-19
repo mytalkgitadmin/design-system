@@ -38,6 +38,7 @@ playwright/.cache/
 .cache/
 temp/
 tmp/
+.temp/
 
 *storybook.log
 storybook-static
