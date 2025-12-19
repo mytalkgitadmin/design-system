@@ -1,0 +1,18 @@
+# Git 커밋 템플릿을 커밋 메시지에 삽입
+# $1 = 커밋 메시지 파일 경로
+# $2 = 커밋 소스 (message, template, merge, squash, commit 등)
+
+COMMIT_MSG_FILE=$1
+COMMIT_SOURCE=$2
+
+# 커밋 소스가 없거나 template인 경우에만 템플릿 적용
+# (merge, squash, commit -c 등의 경우는 제외)
+if [ -z "$COMMIT_SOURCE" ] || [ "$COMMIT_SOURCE" = "template" ]; then
+  # 템플릿 파일이 존재하면 적용
+  if [ -f .gitmessage ]; then
+    # 기존 커밋 메시지가 비어있으면 템플릿 적용
+    if [ ! -s "$COMMIT_MSG_FILE" ] || grep -q "^#" "$COMMIT_MSG_FILE"; then
+      cat .gitmessage > "$COMMIT_MSG_FILE"
+    fi
+  fi
+fi

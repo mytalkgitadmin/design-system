@@ -113,4 +113,3 @@ jobs:
           echo "- \`init\`: (선택) Issue 생성 시 초기 상태 Transition ID" >> $GITHUB_STEP_SUMMARY
           echo "- \`start\`: \"해야 할 일\" → \"진행 중\" 으로 가는 Transition ID" >> $GITHUB_STEP_SUMMARY
           echo "- \`end\`: \"진행 중\" → \"완료\" 또는 \"해결됨\"으로 가는 Transition ID" >> $GITHUB_STEP_SUMMARY
-          echo "- \`completed\`: (선택) 추가 완료 상태 Transition ID" >> $GITHUB_STEP_SUMMARY

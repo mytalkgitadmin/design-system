@@ -31,10 +31,6 @@ if (jiraKeys) {
   const smartCommands = [];
   if (/#comment/i.test(commitMsg)) smartCommands.push("comment");
   if (/#time/i.test(commitMsg)) smartCommands.push("time");
-  if (/#close/i.test(commitMsg)) smartCommands.push("close");
-  if (/#resolve/i.test(commitMsg)) smartCommands.push("resolve");
-  if (/#start/i.test(commitMsg)) smartCommands.push("start");
-  if (/#transition/i.test(commitMsg)) smartCommands.push("transition");
 
   if (smartCommands.length > 0) {
     console.log(`🎯 스마트 커밋 명령어 감지: ${smartCommands.join(", ")}`);
@@ -49,10 +45,10 @@ if (jiraKeys) {
 } else {
   console.log("⚠️  Jira 이슈 키가 없습니다 (선택사항)\n");
   console.log("💡 Jira Smart Commit 사용법:");
-  console.log("   git commit -m \"AUDS-123 #comment 작업 내용\"");
-  console.log("   git commit -m \"AUDS-456 #time 2h #comment API 연동 완료\"");
-  console.log("   git commit -m \"AUDS-789 #close #comment 테스트 완료\"\n");
-  console.log("📚 자세한 사용법: npm run commit:help\n");
+  console.log("   git commit -m \"✨ Feat: 작업 내용 FMTW-123 #comment 코멘트\"");
+  console.log("   git commit -m \"🐛 Fix: API 연동 FMTW-456 #time 2h #comment 작업 완료\"");
+  console.log("   git commit -m \"✨ Feat: 테스트 완료 FMTW-789 #close #comment 배포 준비\"\n");
+  console.log("📚 자세한 사용법: npm run commit (인터랙티브 CLI)\n");
 }
 
 // 커밋을 항상 허용 (경고만 표시)

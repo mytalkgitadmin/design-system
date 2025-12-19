@@ -1,8 +1,7 @@
 {
   "mappings": {
-    "init": "711",
-    "start": "4",
-    "end": "5",
-    "completed": "5"
+    "init": "11",
+    "start": "21",
+    "end": "31"
   }
 }
