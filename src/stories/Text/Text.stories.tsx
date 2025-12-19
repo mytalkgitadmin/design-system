@@ -202,17 +202,6 @@ const meta = {
       table: { category: 'HTML' },
     },
   },
-} satisfies Meta<typeof Text>;
-
-export default meta;
-type Story = StoryObj<typeof meta>;
-
-/**
- * 기본 사용 예시 - preset과 개별 속성을 모두 테스트할 수 있습니다.
- * - preset을 선택하면 해당 preset의 스타일이 적용됩니다.
- * - preset을 선택한 후 개별 속성(size, weight 등)을 변경하면 오버라이드할 수 있습니다.
- */
-export const Default: Story = {
   args: {
     // preset
     preset: undefined,
@@ -233,6 +222,17 @@ export const Default: Story = {
     className: undefined,
     style: undefined,
   },
+} satisfies Meta<typeof Text>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+/**
+ * 기본 사용 예시 - preset과 개별 속성을 모두 테스트할 수 있습니다.
+ * - preset을 선택하면 해당 preset의 스타일이 적용됩니다.
+ * - preset을 선택한 후 개별 속성(size, weight 등)을 변경하면 오버라이드할 수 있습니다.
+ */
+export const Default: Story = {
   decorators: [
     (Story) => (
       <div style={{ width: '600px', maxWidth: '100%' }}>
@@ -247,7 +247,6 @@ export const Default: Story = {
  * Display는 가장 큰 타이포그래피로, 랜딩 페이지나 대형 타이틀에 사용됩니다.
  */
 export const Presets: Story = {
-  args: { children: '' },
   render: () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -329,7 +328,6 @@ export const Presets: Story = {
 };
 
 export const Truncate: Story = {
-  args: { children: '' },
   render: () => (
     <div
       style={{

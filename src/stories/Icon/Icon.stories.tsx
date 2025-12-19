@@ -76,26 +76,22 @@ const meta = {
         '시맨틱 프리셋(primary, secondary 등) 또는 토큰 컬러 선택. 커스텀 hex 값은 직접 입력 가능',
     },
   },
-} satisfies Meta<typeof Icon>;
-
-export default meta;
-type Story = StoryObj<typeof meta>;
-
-export const Default: Story = {
   args: {
     name: 'tabler:check',
     size: 20,
     color: 'primary',
   },
-};
+} satisfies Meta<typeof Icon>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {};
 
 /**
  * 시맨틱 컬러 프리셋 - 디자인 시스템에서 정의한 색상을 사용합니다.
  */
 export const SemanticColors: Story = {
-  args: {
-    name: 'tabler:check',
-  },
   render: () => (
     <div
       style={{
@@ -133,9 +129,6 @@ export const SemanticColors: Story = {
  * 커스텀 컬러 - 토큰의 원시 컬러를 직접 사용할 수 있습니다.
  */
 export const CustomColors: Story = {
-  args: {
-    name: 'tabler:check',
-  },
   render: () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div>
@@ -202,9 +195,6 @@ export const CustomColors: Story = {
  * 아이콘 사이즈
  */
 export const Sizes: Story = {
-  args: {
-    name: 'tabler:check',
-  },
   render: () => (
     <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
       <div style={{ textAlign: 'center' }}>
@@ -232,9 +222,6 @@ export const Sizes: Story = {
 };
 
 export const AllIcons: Story = {
-  args: {
-    name: 'tabler:check',
-  },
   render: () => {
     const icons: IconType[] = [
       'tabler:check',

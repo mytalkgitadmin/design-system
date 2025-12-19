@@ -85,12 +85,6 @@ const meta = {
       description: 'Disabled state',
     },
   },
-} satisfies Meta<typeof Button>;
-
-export default meta;
-type Story = StoryObj<typeof meta>;
-
-export const Primary: Story = {
   args: {
     variant: 'solid',
     size: 'md',
@@ -100,7 +94,12 @@ export const Primary: Story = {
     full: false,
     type: 'button',
   },
-};
+} satisfies Meta<typeof Button>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const Primary: Story = {};
 
 /**
  * 시맨틱 컬러 프리셋 - 디자인 시스템에서 정의한 색상과 hover/active 상태를 사용합니다.
@@ -277,9 +276,6 @@ export const FullWidth: Story = {
  * 아이콘이 있는 버튼
  */
 export const WithIcon: Story = {
-  args: {
-    label: 'Button',
-  },
   render: () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div>
@@ -376,119 +372,3 @@ export const WithIcon: Story = {
     </div>
   ),
 };
-
-/*
-export const Secondary: Story = {
-  args: {
-    variant: 'secondary',
-    size: 'md',
-    label: 'Secondary Button',
-  },
-};
-
-export const Outline: Story = {
-  args: {
-    variant: 'outline',
-    size: 'md',
-    label: 'Outline Button',
-  },
-};
-
-export const WithIcon: Story = {
-  args: {
-    variant: 'primary',
-    size: 'md',
-    label: 'Search',
-    leftIcon: 'tabler:search',
-  },
-};
-
-export const Sizes: Story = {
-  args: {
-    label: 'Button',
-  },
-  render: () => (
-    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-      <Button variant='primary' size='xs' label='Extra Small' />
-      <Button variant='primary' size='sm' label='Small' />
-      <Button variant='primary' size='md' label='Medium' />
-      <Button variant='primary' size='lg' label='Large' />
-    </div>
-  ),
-};
-
-export const Variants: Story = {
-  args: {
-    label: 'Button',
-  },
-  render: () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', gap: '16px' }}>
-        <Button variant='primary' size='md' label='Primary' />
-        <Button variant='secondary' size='md' label='Secondary' />
-        <Button variant='outline' size='md' label='Outline' />
-      </div>
-    </div>
-  ),
-};
-
-export const Disabled: Story = {
-  args: {
-    label: 'Disabled Button',
-  },
-  render: () => (
-    <div style={{ display: 'flex', gap: '16px' }}>
-      <Button variant='primary' size='md' label='Primary Disabled' disabled={true} />
-      <Button variant='secondary' size='md' label='Secondary Disabled' disabled={true} />
-      <Button variant='outline' size='md' label='Outline Disabled' disabled={true} />
-    </div>
-  ),
-};
-
-export const FullWidth: Story = {
-  args: {
-    label: 'Full Width Button',
-  },
-  render: () => (
-    <div style={{ width: '400px' }}>
-      <Button
-        variant='primary'
-        size='md'
-        label='Full Width Button'
-        full={true}
-      />
-    </div>
-  ),
-};
-
-export const IconButtons: Story = {
-  args: {
-    label: 'Button',
-  },
-  render: () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', gap: '16px' }}>
-        <Button
-          variant='primary'
-          size='md'
-          label='Check'
-          leftIcon='tabler:check'
-        />
-        <Button
-          variant='secondary'
-          size='md'
-          label='Add'
-          leftIcon='tabler:plus'
-        />
-        <Button
-          variant='outline'
-          size='md'
-          label='Search'
-          leftIcon='tabler:search'
-        />
-      </div>
-    </div>
-  ),
-};
-
-*/
