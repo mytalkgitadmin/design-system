@@ -1,6 +1,9 @@
 module.exports = {
   // 분리된 토큰 파일들을 모두 읽어옴
-  source: ['src/tokens/primitives/**/*.json', 'src/tokens/semantic/**/*.json'],
+  source: [
+    'src/tokens/auto/primitives/**/*.json',
+    'src/tokens/auto/semantic/**/*.json',
+  ],
   // hooks를 사용한 커스텀 transform, format 등록 (v5+)
   hooks: {
     transforms: {
@@ -179,7 +182,7 @@ module.exports = {
     // TypeScript 파일 생성 (중첩 객체 형태)
     ts: {
       transformGroup: 'js',
-      buildPath: 'src/tokens/',
+      buildPath: 'src/tokens/auto/',
       files: [
         {
           destination: 'index.ts',
@@ -197,7 +200,7 @@ module.exports = {
         'size/rem',
         'color/css',
       ],
-      buildPath: 'src/tokens/',
+      buildPath: 'src/tokens/auto/',
       files: [
         {
           destination: 'variables.css',
