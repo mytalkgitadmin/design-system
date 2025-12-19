@@ -100,6 +100,7 @@
   --font-weight-regular: 400;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
+  --font-size-0: 0;
   --number-0: 0;
   --number-1: 1;
   --number-2: 2;
@@ -124,6 +125,13 @@
   --number-152: 152;
   --number-200: 200;
   --number-999: 999;
+  --rounded-none: 0;
+  --rounded-xs: 4;
+  --rounded-sm: 8;
+  --rounded-md: 12;
+  --rounded-full: 999;
+  --rounded-lg: 16;
+  --rounded-xl: 24;
   --brand-1-bg-default: var(--base-white);
   --brand-1-bg-subtle: var(--gray-50);
   --brand-1-bg-dim: var(--alpha-black64);

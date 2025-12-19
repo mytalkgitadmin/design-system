@@ -124,6 +124,9 @@ export const font = {
     regular: 400,
     semibold: 600,
     bold: 700
+  },
+  size: {
+    '0': 0
   }
 };
 

@@ -11,7 +11,7 @@ import {
   presetOptions as TEXT_PRESETS,
   textElement,
 } from '../../tokens/dev/typography';
-import { theme } from '../../tokens';
+import { theme } from '../../tokens/auto';
 
 /**
  * Text 컴포넌트는 디자인 시스템의 타이포그래피를 관리하는 기본 텍스트 컴포넌트입니다.

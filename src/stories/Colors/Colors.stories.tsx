@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { useState } from 'react';
 import Palette, { type CopyFormat } from './Palette';
-import { color } from '../../tokens';
+import { color } from '../../tokens/auto';
 
 /**
  * Colors 컴포넌트는 디자인 시스템의 색상 팔레트를 보여줍니다.

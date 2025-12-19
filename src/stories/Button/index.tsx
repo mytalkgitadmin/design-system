@@ -1,7 +1,7 @@
 import { assignInlineVars } from '@vanilla-extract/dynamic';
 import { buttonStyle, buttonVars } from './Button.css';
 import { ButtonProps, ButtonColorScheme } from './types';
-import { theme } from '../../tokens';
+import { theme } from '../../tokens/auto';
 import Icon from '../Icon';
 
 export type { ButtonProps } from './types';

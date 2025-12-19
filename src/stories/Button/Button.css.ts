@@ -1,6 +1,6 @@
 import { createVar, style } from '@vanilla-extract/css';
 import { recipe } from '@vanilla-extract/recipes';
-import { font } from '../../tokens';
+import { font } from '../../tokens/auto';
 
 // CSS 변수 정의
 const defaultColorVar = createVar();

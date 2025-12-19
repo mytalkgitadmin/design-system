@@ -1,7 +1,7 @@
 // Icon.tsx
 import { Icon as IconifyIcon } from '@iconify/react';
 import { IconProps } from './types';
-import { theme } from '../../tokens';
+import { theme } from '../../tokens/auto';
 
 export type { IconType } from './types';
 

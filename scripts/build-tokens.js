@@ -66,11 +66,11 @@ function separateSemantics(figmaTokens) {
 }
 
 // Figma 토큰 읽기
-const figmaTokensPath = path.join(__dirname, '../src/figma/tokens.json');
+const figmaTokensPath = path.join(__dirname, '../src/tokens/figma/tokens.json');
 const figmaTokens = JSON.parse(fs.readFileSync(figmaTokensPath, 'utf8'));
 
 // 토큰 디렉토리 생성
-const tokensDir = path.join(__dirname, '../src/tokens');
+const tokensDir = path.join(__dirname, '../src/tokens/auto');
 const primitivesDir = path.join(tokensDir, 'primitives');
 const semanticDir = path.join(tokensDir, 'semantic');
 
@@ -125,8 +125,8 @@ try {
   });
 
   console.log('✅ 토큰 빌드가 완료되었습니다!');
-  console.log('   - TypeScript: src/tokens/index.ts');
-  console.log('   - CSS 변수: src/tokens/variables.css');
+  console.log('   - TypeScript: src/tokens/auto/index.ts');
+  console.log('   - CSS 변수: src/tokens/auto/variables.css');
 } catch (error) {
   console.error('❌ 토큰 빌드 중 오류 발생:', error.message);
   process.exit(1);

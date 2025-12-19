@@ -1,0 +1,32 @@
+{
+  "rounded": {
+    "none": {
+      "value": 0,
+      "type": "borderRadius"
+    },
+    "xs": {
+      "value": 4,
+      "type": "borderRadius"
+    },
+    "sm": {
+      "value": 8,
+      "type": "borderRadius"
+    },
+    "md": {
+      "value": 12,
+      "type": "borderRadius"
+    },
+    "full": {
+      "value": 999,
+      "type": "borderRadius"
+    },
+    "lg": {
+      "value": 16,
+      "type": "borderRadius"
+    },
+    "xl": {
+      "value": 24,
+      "type": "borderRadius"
+    }
+  }
+}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { assignInlineVars } from '@vanilla-extract/dynamic';
 import { textStyle, textVars } from './Text.css';
-import { theme } from '../../tokens';
+import { theme } from '../../tokens/auto';
 import { type TextProps, typographyPresets } from '../../tokens/dev/typography';
 
 export type { TextProps } from '../../tokens/dev/typography';

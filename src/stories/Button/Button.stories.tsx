@@ -6,7 +6,7 @@ import {
   BUTTON_TYPES,
   BUTTON_COLOR_PRESETS,
 } from './types';
-import { color } from '../../tokens';
+import { color } from '../../tokens/auto';
 
 /**
  * Button 컴포넌트는 사용자 액션을 트리거하는 기본 버튼입니다.

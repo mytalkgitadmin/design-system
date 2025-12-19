@@ -1,6 +1,6 @@
 import { createVar, style } from '@vanilla-extract/css';
 import { recipe } from '@vanilla-extract/recipes';
-import { font } from '../../tokens';
+import { font } from '../../tokens/auto';
 import * as typography from '../../tokens/dev/typography';
 
 // CSS 변수 정의
@@ -76,7 +76,13 @@ export const textStyle = recipe({
     wordBreak: Object.fromEntries(
       Object.entries(typography.wordBreak).map(([key, value]) => [
         key,
-        { wordBreak: value as 'normal' | 'break-all' | 'keep-all' | 'break-word' },
+        {
+          wordBreak: value as
+            | 'normal'
+            | 'break-all'
+            | 'keep-all'
+            | 'break-word',
+        },
       ])
     ) as Record<
       typography.WordBreak,
