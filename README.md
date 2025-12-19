@@ -161,6 +161,18 @@ npm run commit             # 인터랙티브 커밋 (권장)
 npm run jira:create        # Jira 티켓 생성
 ```
 
+### 코드 품질 검사
+
+```bash
+npm run lint              # ESLint 검사
+npm run lint:fix          # ESLint 자동 수정
+npm run format            # Prettier 포매팅
+npm run format:check      # Prettier 검사
+npm run type-check        # TypeScript 타입 검사
+```
+
+> 💡 커밋 시 자동으로 `lint`와 `type-check`가 실행됩니다.
+
 ---
 
 ## 📂 프로젝트 구조

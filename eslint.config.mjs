@@ -150,6 +150,9 @@ export default tseslint.config(
       '.storybook/**',
       '*.config.{js,ts,mjs,cjs}',
       'scripts/**',
+      '.commitlintrc.js',
+      '.cz-config.js',
+      '.prettierrc.js',
     ],
   }
 );
