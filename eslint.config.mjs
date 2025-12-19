@@ -134,7 +134,7 @@ export default tseslint.config(
 
   // Storybook 파일은 Default Export 허용
   {
-    files: ['**/*.stories.{ts,tsx}'],
+    files: ['**/*.stories.{ts,tsx}', '**/*.d.ts'],
     rules: {
       'import/no-default-export': 'off',
     },
