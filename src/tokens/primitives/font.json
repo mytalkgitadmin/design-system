@@ -1,0 +1,24 @@
+{
+  "font": {
+    "font-family": {
+      "Pretendard": {
+        "value": "Pretendard",
+        "type": "text"
+      }
+    },
+    "weight": {
+      "regular": {
+        "value": 400,
+        "type": "number"
+      },
+      "semibold": {
+        "value": 600,
+        "type": "number"
+      },
+      "bold": {
+        "value": 700,
+        "type": "number"
+      }
+    }
+  }
+}

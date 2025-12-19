@@ -1,0 +1,72 @@
+/*  reset */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  padding: 0;
+  margin: 0;
+}
+
+[class^="grid"] {
+  display: grid;
+  gap: 0;
+}
+html {
+  font-size: 10px;
+}
+body {
+  font-size: 1.6rem;
+}
+.container {
+  container-type: inline-size;
+  container-name: container;
+}
+
+.grid2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.grid7 {
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.grid11 {
+  grid-template-columns: repeat(11, 1fr);
+}
+
+@container container (width < 800px) {
+  .grid2,
+  .grid7,
+  .grid11 {
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  }
+}
+
+h1 + p {
+  color: #888e9c;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0 0 0.5em 0;
+}
+.maxWidth {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+section {
+  margin: 2em 0;
+}
+
+button {
+  border: 0;
+  background: none;
+  padding: 0;
+}

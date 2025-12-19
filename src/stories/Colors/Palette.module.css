@@ -1,0 +1,41 @@
+.click {
+  position: relative;
+  cursor: pointer;
+}
+
+.box {
+  height: 80px;
+}
+
+.text {
+  padding: 8px;
+  line-height: 1;
+}
+
+.text strong {
+  font-size: 13px;
+}
+
+.text span {
+  font-size: 12px;
+  opacity: 0.5;
+}
+
+.copy {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 10;
+
+  width: max-content;
+  max-width: 200px;
+}
