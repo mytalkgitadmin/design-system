@@ -193,19 +193,15 @@ async function main() {
       `📝 기존 릴리즈 발견: ${existingRelease.name} (${existingRelease.id})`
     );
     version = existingRelease;
-
-    // 설명 업데이트
-    const description = GITHUB_RELEASE_URL
-      ? `Release ${RELEASE_VERSION}\n\nGitHub Release: ${GITHUB_RELEASE_URL}`
-      : `Release ${RELEASE_VERSION}`;
-    await updateRelease(version.id, description);
   } else {
     console.log('📝 새 릴리즈 생성 중...');
-    const description = GITHUB_RELEASE_URL
-      ? `Release ${RELEASE_VERSION}\n\nGitHub Release: ${GITHUB_RELEASE_URL}`
-      : `Release ${RELEASE_VERSION}`;
+    const description = `Release ${RELEASE_VERSION}`;
     version = await createRelease(JIRA_PROJECT, RELEASE_VERSION, description);
   }
+
+  // 버전 ID를 파일로 저장 (GitHub Actions에서 사용)
+  const fs = require('fs');
+  fs.writeFileSync('jira_version_id.txt', version.id.toString());
 
   // 티켓 연결 (티켓이 있을 때만)
   let successCount = 0;
