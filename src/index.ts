@@ -4,9 +4,9 @@ export { Button } from './stories/Button';
 export { Icon } from './stories/Icon';
 export type { IconProps, IconType } from './stories/Icon/types';
 export { Text } from './stories/Text';
-export type { TextProps } from './tokens/dev/typography';
+export type { TextProps } from './tokens/dev/helpers/typography';
 
 // 토큰 export
-export { color, font, number,theme } from './tokens/auto';
-export { spacing } from './tokens/dev/spacing';
-export { typographyPresets } from './tokens/dev/typography';
+export { color, font, number, theme } from './tokens';
+export { spacing } from './tokens/dev/helpers/spacing';
+export { typographyPresets } from './tokens/dev/helpers/typography';

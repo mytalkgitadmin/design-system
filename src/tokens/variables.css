@@ -164,11 +164,14 @@
   --bg-subtle: var(--gray-50);
   --bg-dim: var(--alpha-black64);
   --bg-muted: var(--gray-100);
-  --bg-disabled: var(--gray-200);
+  --bg-disabled: var(--gray-300);
   --bg-inverse: var(--gray-900);
-  --border-strong: var(--gray-300);
-  --border-default: var(--gray-200);
-  --border-disabled: var(--gray-400);
+  --bg-gray: var(--gray-200);
+  --bg-gray-strong: var(--gray-300);
+  --bg-gray-strongest: var(--gray-400);
+  --border-strong: var(--gray-400);
+  --border-default: var(--gray-300);
+  --border-disabled: var(--gray-300);
   --border-inverse: var(--base-white);
   --border-thumbnail: var(--alpha-black8);
   --border-negative-soft: var(--red-200);

@@ -1,6 +1,6 @@
 {
   "name": "@bemily/design-system",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Design System Component Library",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -57,7 +57,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "build": "tsup",
+    "build": "npm run build:tokens && tsup",
     "build:tokens": "node scripts/build-tokens.js",
     "prepublishOnly": "npm run build",
     "jira:create": "node scripts/jira/create-jira-only.js",

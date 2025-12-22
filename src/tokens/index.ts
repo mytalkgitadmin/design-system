@@ -119,13 +119,16 @@ export const color = {
     subtle: '#f8f9fc',
     dim: '#000000a3',
     muted: '#f4f6fb',
-    disabled: '#edf0f5',
-    inverse: '#2f3744'
+    disabled: '#e3e6ee',
+    inverse: '#2f3744',
+    gray: '#edf0f5',
+    grayStrong: '#e3e6ee',
+    grayStrongest: '#c5c9d3'
   },
   border: {
-    strong: '#e3e6ee',
-    default: '#edf0f5',
-    disabled: '#c5c9d3',
+    strong: '#c5c9d3',
+    default: '#e3e6ee',
+    disabled: '#e3e6ee',
     inverse: '#ffffff',
     thumbnail: '#00000014',
     negativeSoft: '#ffc5cd',
