@@ -153,6 +153,7 @@ export default tseslint.config(
       '.commitlintrc.js',
       '.cz-config.js',
       '.prettierrc.js',
+      '**/*.d.ts', // 타입 선언 파일 제외
     ],
   }
 );
