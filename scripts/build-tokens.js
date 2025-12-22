@@ -27,6 +27,7 @@ function separatePrimitives(primitiveTokens) {
     color: {},
     font: {},
     number: {},
+    rounded: {},
   };
 
   if (primitiveTokens.color) {
@@ -47,6 +48,7 @@ function separatePrimitives(primitiveTokens) {
 // Semantic 토큰 분리
 function separateSemantics(figmaTokens) {
   const semanticColors = {};
+  let roundedTokens = {};
 
   Object.keys(figmaTokens).forEach((setName) => {
     if (setName.startsWith('semantic/')) {
@@ -57,11 +59,29 @@ function separateSemantics(figmaTokens) {
         // brandName을 키로 사용하지 않고 바로 color 토큰을 처리
         semanticColors[brandName] = processTokens(tokens.color);
       }
+
+      // rounded 토큰 추출 (shape.rounded)
+      if (tokens.shape && tokens.shape.rounded) {
+        const processedRounded = processTokens(tokens.shape.rounded);
+
+        // {number.unit.0} → {number.0} 형태로 참조 수정
+        Object.keys(processedRounded).forEach((key) => {
+          if (processedRounded[key].value && typeof processedRounded[key].value === 'string') {
+            processedRounded[key].value = processedRounded[key].value.replace(
+              /\{number\.unit\.(\d+)\}/g,
+              '{number.$1}'
+            );
+          }
+        });
+
+        roundedTokens = processedRounded;
+      }
     }
   });
 
   return {
     colors: semanticColors,
+    rounded: roundedTokens,
   };
 }
 
@@ -109,11 +129,21 @@ if (figmaTokens['primitive/value']) {
 // Semantic 토큰 분리 및 저장
 const semantics = separateSemantics(figmaTokens);
 
+// colors
 fs.writeFileSync(
   path.join(semanticDir, 'colors.json'),
   JSON.stringify(semantics.colors, null, 2)
 );
 console.log('✅ Semantic: colors.json 생성 완료');
+
+// rounded (semantic에서 추출)
+if (semantics.rounded && Object.keys(semantics.rounded).length > 0) {
+  fs.writeFileSync(
+    path.join(primitivesDir, 'rounded.json'),
+    JSON.stringify({ rounded: semantics.rounded }, null, 2)
+  );
+  console.log('✅ Primitives: rounded.json 생성 완료');
+}
 
 console.log('\n📦 토큰 타입별 분리 완료!');
 

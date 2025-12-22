@@ -1,32 +1,32 @@
 {
   "rounded": {
     "none": {
-      "value": 0,
-      "type": "borderRadius"
+      "value": "{number.0}",
+      "type": "number"
     },
     "xs": {
-      "value": 4,
-      "type": "borderRadius"
+      "value": "{number.4}",
+      "type": "number"
     },
     "sm": {
-      "value": 8,
-      "type": "borderRadius"
+      "value": "{number.8}",
+      "type": "number"
     },
     "md": {
-      "value": 12,
-      "type": "borderRadius"
+      "value": "{number.12}",
+      "type": "number"
     },
     "full": {
-      "value": 999,
-      "type": "borderRadius"
+      "value": "{number.999}",
+      "type": "number"
     },
     "lg": {
-      "value": 16,
-      "type": "borderRadius"
+      "value": "{number.16}",
+      "type": "number"
     },
     "xl": {
-      "value": 24,
-      "type": "borderRadius"
+      "value": "{number.24}",
+      "type": "number"
     }
   }
 }
