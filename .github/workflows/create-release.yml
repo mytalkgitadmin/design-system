@@ -116,6 +116,19 @@ jobs:
             echo "📝 추출된 Jira 티켓: $TICKETS"
           fi
 
+      - name: Create Jira Release
+        id: create_jira_release
+        run: |
+          node scripts/jira/create-release.js
+          echo "jira_version_id=$(cat jira_version_id.txt)" >> $GITHUB_OUTPUT
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_PROJECT: ${{ secrets.JIRA_PROJECT }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          JIRA_TICKETS: ${{ steps.jira_tickets.outputs.tickets }}
+
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
@@ -126,39 +139,38 @@ jobs:
           release_name: Release ${{ steps.version.outputs.version }}
           body: |
             ## 🎉 Release ${{ steps.version.outputs.version }}
-
+            
             ${{ inputs.release_notes }}
-
+            
             ### 📦 배포 정보
             - **버전**: ${{ steps.version.outputs.version }}
             - **Nexus Registry**: npm-bemily
             - **Package**: @bemily/design-system@${{ steps.version.outputs.version_without_v }}
-
+            
             ### 📝 설치 방법
             ```bash
             npm install @bemily/design-system@${{ steps.version.outputs.version_without_v }}
             # 또는
             npm update @bemily/design-system
             ```
-
+            
             ### 🔗 관련 링크
             - [Nexus Repository](https://nexus.danalentertainment.com/#browse/browse:npm-bemily)
-            - [Jira Releases](${{ secrets.JIRA_BASE_URL }}/projects/${{ secrets.JIRA_PROJECT }}/versions)
-
+            - [Jira Release](${{ secrets.JIRA_BASE_URL }}/projects/${{ secrets.JIRA_PROJECT }}/versions/${{ steps.create_jira_release.outputs.jira_version_id }}/tab/release-report-all-issues)
+            
             ---
             _이 릴리즈는 GitHub Actions에 의해 자동으로 생성되었습니다._
           draft: false
           prerelease: ${{ inputs.prerelease }}
 
-      - name: Create Jira Release
-        run: node scripts/jira/create-release.js
+      - name: Update Jira Release with GitHub URL
+        run: node scripts/jira/update-release-description.js
         env:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
           JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
-          JIRA_PROJECT: ${{ secrets.JIRA_PROJECT }}
+          JIRA_VERSION_ID: ${{ steps.create_jira_release.outputs.jira_version_id }}
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
-          JIRA_TICKETS: ${{ steps.jira_tickets.outputs.tickets }}
           GITHUB_RELEASE_URL: ${{ steps.create_release.outputs.html_url }}
 
       - name: Summary
