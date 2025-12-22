@@ -141,12 +141,35 @@ async function main() {
   console.log(`📋 프로젝트: ${JIRA_PROJECT}`);
   console.log(`🏷️  버전: ${RELEASE_VERSION}`);
 
-  // 티켓 파싱
-  const tickets = JIRA_TICKETS
+  // 티켓 파싱 및 프로젝트 필터링
+  const allTickets = JIRA_TICKETS
     ? JIRA_TICKETS.split(',')
         .map((t) => t.trim())
         .filter(Boolean)
     : [];
+
+  // 프로젝트 키 추출 함수 (예: FMTW-123 → FMTW)
+  const getProjectKey = (ticket) => {
+    const match = ticket.match(/^([A-Z]+)-\d+$/);
+    return match ? match[1] : null;
+  };
+
+  // JIRA_PROJECT와 일치하는 티켓만 필터링
+  const tickets = allTickets.filter((ticket) => {
+    const projectKey = getProjectKey(ticket);
+    return projectKey === JIRA_PROJECT;
+  });
+
+  const otherTickets = allTickets.filter((ticket) => {
+    const projectKey = getProjectKey(ticket);
+    return projectKey !== JIRA_PROJECT;
+  });
+
+  if (otherTickets.length > 0) {
+    console.log(
+      `⚠️  다른 프로젝트 티켓 ${otherTickets.length}개 무시: ${otherTickets.join(', ')}\n`
+    );
+  }
 
   if (tickets.length === 0) {
     console.log('⚠️  연결할 Jira 티켓이 없습니다.');
@@ -154,7 +177,9 @@ async function main() {
     return;
   }
 
-  console.log(`🎫 Jira 티켓 ${tickets.length}개 발견: ${tickets.join(', ')}\n`);
+  console.log(
+    `🎫 ${JIRA_PROJECT} 프로젝트 티켓 ${tickets.length}개 발견: ${tickets.join(', ')}\n`
+  );
 
   // 기존 릴리즈 확인
   console.log('🔍 기존 릴리즈 확인 중...');
