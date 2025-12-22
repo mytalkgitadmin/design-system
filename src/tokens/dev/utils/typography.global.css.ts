@@ -8,7 +8,7 @@
  */
 import { globalStyle } from '@vanilla-extract/css';
 
-import * as typography from './typography';
+import * as typography from '../helpers/typography';
 
 // Font Size - .text-{size}
 Object.entries(typography.fontSize).forEach(([key, value]) => {

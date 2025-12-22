@@ -4,7 +4,7 @@
  */
 import { styleVariants } from '@vanilla-extract/css';
 
-import * as spacingTokens from './spacing';
+import * as spacingTokens from '../helpers/spacing';
 
 // Margin utilities
 export const m = styleVariants(spacingTokens.spacing, (value) => ({

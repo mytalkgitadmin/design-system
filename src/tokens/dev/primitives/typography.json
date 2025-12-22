@@ -1,0 +1,62 @@
+{
+  "typography": {
+    "fontSize": {
+      "56": {
+        "value": "56",
+        "type": "number"
+      },
+      "44": {
+        "value": "44",
+        "type": "number"
+      },
+      "40": {
+        "value": "40",
+        "type": "number"
+      },
+      "32": {
+        "value": "32",
+        "type": "number"
+      },
+      "26": {
+        "value": "26",
+        "type": "number"
+      },
+      "22": {
+        "value": "22",
+        "type": "number"
+      },
+      "20": {
+        "value": "20",
+        "type": "number"
+      },
+      "18": {
+        "value": "18",
+        "type": "number"
+      },
+      "16": {
+        "value": "16",
+        "type": "number"
+      },
+      "15": {
+        "value": "15",
+        "type": "number"
+      },
+      "14": {
+        "value": "14",
+        "type": "number"
+      },
+      "13": {
+        "value": "13",
+        "type": "number"
+      },
+      "12": {
+        "value": "12",
+        "type": "number"
+      },
+      "11": {
+        "value": "11",
+        "type": "number"
+      }
+    }
+  }
+}

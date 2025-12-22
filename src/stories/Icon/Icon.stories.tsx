@@ -1,4 +1,4 @@
-import { color } from '../../tokens/auto';
+import { color } from '../../tokens';
 import { Icon } from './index';
 import { ICON_COLOR_PRESETS } from './types';
 

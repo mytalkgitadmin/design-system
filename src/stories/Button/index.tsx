@@ -1,6 +1,6 @@
 import { assignInlineVars } from '@vanilla-extract/dynamic';
 
-import { theme } from '../../tokens/auto';
+import { theme } from '../../tokens';
 import { Icon } from '../Icon';
 import { ButtonColorScheme, ButtonProps } from './types';
 
@@ -13,28 +13,28 @@ const getColorScheme = (color: string): ButtonColorScheme => {
   // 시맨틱 토큰 매핑
   const colorPresets: Record<string, ButtonColorScheme> = {
     primary: {
-      default: theme.brand1.btn.primaryDefault,
-      hover: theme.brand1.btn.primaryHover,
-      active: theme.brand1.btn.primaryPressed,
+      default: theme.brand.default,
+      hover: theme.brand.subtle,
+      active: theme.brand.strong,
     },
-    secondary: {
-      default: theme.brand1.btn.secondaryDefault,
-      hover: theme.brand1.btn.secondaryHover,
-      active: theme.brand1.btn.secondaryPressed,
-    },
+    // secondary: {
+    //   default: theme.brand.default,
+    //   hover: theme.brand.subtle,
+    //   active: theme.brand.strong,
+    // },
     warning: {
       default: '#ffb020',
       hover: '#cc8a18',
       active: '#996713',
     },
     success: {
-      default: theme.brand1.status.possitiveText,
+      default: '#0d964f',
       hover: '#17824a',
       active: '#10613a',
     },
     danger: {
-      default: theme.brand1.status.negativeText,
-      hover: theme.brand1.status.negativeText,
+      default: '#d81633',
+      hover: '#c8263d',
       active: '#c8263d',
     },
   };
@@ -71,7 +71,7 @@ export const Button = ({
     [buttonVars.activeColor]: colorScheme.active,
     [buttonVars.textColor]:
       variant === 'solid' ? '#ffffff' : colorScheme.default,
-    [buttonVars.disabledColor]: theme.brand1.btn.disabled,
+    [buttonVars.disabledColor]: '#eee',
   });
 
   return (

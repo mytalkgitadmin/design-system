@@ -1,4 +1,4 @@
-import { rounded } from '../../tokens/auto';
+import { rounded } from '../../tokens';
 import { Box, RoundedDemo } from './RoundedDemo';
 
 import type { Meta, StoryObj } from '@storybook/react';
@@ -21,8 +21,8 @@ import type { Meta, StoryObj } from '@storybook/react';
  * ## 🔄 토큰 소스
  *
  * - **소스**: Figma Tokens (semantic/brand-1 > shape.rounded)
- * - **자동 생성**: src/tokens/auto/primitives/rounded.json
- * - **빌드 결과**: src/tokens/auto/index.ts, src/tokens/auto/variables.css
+ * - **자동 생성**: src/tokens/primitives/rounded.json
+ * - **빌드 결과**: src/tokens/index.ts, src/tokens/variables.css
  * - **빌드 명령**: npm run build:tokens
  *
  * ## ✅ 사용 원칙
@@ -38,7 +38,7 @@ import type { Meta, StoryObj } from '@storybook/react';
  * Figma에서 자동 생성된 숫자 값을 사용합니다.
  *
  * ```typescript
- * import { rounded } from '@/tokens/auto';
+ * import { rounded } from '@/tokens';
  *
  * // 인라인 스타일
  * const Card = () => (

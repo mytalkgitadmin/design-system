@@ -1,4 +1,4 @@
-import { spacing } from '../../tokens/dev/spacing';
+import { spacing } from '../../tokens/dev/helpers/spacing';
 
 export type SpacingDemoProps = {
   margin?: keyof typeof spacing;

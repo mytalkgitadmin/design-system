@@ -1,4 +1,4 @@
-import { rounded } from '../../tokens/auto';
+import { rounded } from '../../tokens';
 
 export type RoundedDemoProps = {
   rounded?: keyof typeof rounded;
