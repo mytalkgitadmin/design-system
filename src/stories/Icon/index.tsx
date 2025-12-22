@@ -1,7 +1,7 @@
 // Icon.tsx
 import { Icon as IconifyIcon } from '@iconify/react';
 
-import { theme } from '../../tokens/auto';
+import { theme } from '../../tokens';
 import { IconProps } from './types';
 
 export type { IconType } from './types';
@@ -12,11 +12,11 @@ const getIconColor = (color?: string): string | undefined => {
 
   // 시맨틱 토큰 매핑
   const colorPresets: Record<string, string> = {
-    primary: theme.brand1.btn.primaryDefault,
-    secondary: theme.brand1.icon.primary,
+    primary: theme.brand.default,
+    // secondary: theme.brand.icon.primary,
     warning: '#ffb020',
-    success: theme.brand1.status.possitiveIcon,
-    danger: theme.brand1.status.negativeIcon,
+    success: '#0d964f',
+    danger: '#d81633',
   };
 
   // 시맨틱 토큰이면 해당 색상 반환

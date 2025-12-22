@@ -28,7 +28,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 전체 히스토리 필요 (이전 태그 조회용)
+          fetch-depth: 0 # 전체 히스토리 필요 (이전 태그 조회용)
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -45,12 +45,12 @@ jobs:
             VERSION=$(node -p "require('./package.json').version")
             echo "📦 package.json 버전 사용: $VERSION"
           fi
-          
+
           # v 접두사 추가
           if [[ ! "$VERSION" =~ ^v ]]; then
             VERSION="v${VERSION}"
           fi
-          
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "version_without_v=${VERSION#v}" >> $GITHUB_OUTPUT
           echo "🏷️  릴리즈 버전: $VERSION"
@@ -82,7 +82,7 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -v "^${VERSION}$" | head -n 1)
-          
+
           if [ -z "$PREVIOUS_TAG" ]; then
             echo "previous_tag=" >> $GITHUB_OUTPUT
             echo "📝 이전 태그 없음 (첫 릴리즈)"
@@ -96,7 +96,7 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           PREVIOUS_TAG="${{ steps.previous_tag.outputs.previous_tag }}"
-          
+
           if [ -z "$PREVIOUS_TAG" ]; then
             # 첫 릴리즈: 모든 커밋
             COMMITS=$(git log --pretty=format:"%s %b")
@@ -104,10 +104,10 @@ jobs:
             # 이전 태그부터 현재까지
             COMMITS=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"%s %b")
           fi
-          
+
           # Jira 티켓 추출 (PROJ-123 패턴)
           TICKETS=$(echo "$COMMITS" | grep -oE '\b[A-Z]+-[0-9]+\b' | sort -u | tr '\n' ',' | sed 's/,$//')
-          
+
           if [ -z "$TICKETS" ]; then
             echo "tickets=" >> $GITHUB_OUTPUT
             echo "📝 Jira 티켓 없음"
@@ -126,32 +126,31 @@ jobs:
           release_name: Release ${{ steps.version.outputs.version }}
           body: |
             ## 🎉 Release ${{ steps.version.outputs.version }}
-            
+
             ${{ inputs.release_notes }}
-            
+
             ### 📦 배포 정보
             - **버전**: ${{ steps.version.outputs.version }}
             - **Nexus Registry**: npm-bemily
             - **Package**: @bemily/design-system@${{ steps.version.outputs.version_without_v }}
-            
+
             ### 📝 설치 방법
             ```bash
             npm install @bemily/design-system@${{ steps.version.outputs.version_without_v }}
             # 또는
             npm update @bemily/design-system
             ```
-            
+
             ### 🔗 관련 링크
             - [Nexus Repository](https://nexus.danalentertainment.com/#browse/browse:npm-bemily)
-            - [Jira Release](https://jira.danalentertainment.com/projects/${{ secrets.JIRA_PROJECT }}/versions)
-            
+            - [Jira Releases](${{ secrets.JIRA_BASE_URL }}/projects/${{ secrets.JIRA_PROJECT }}/versions)
+
             ---
             _이 릴리즈는 GitHub Actions에 의해 자동으로 생성되었습니다._
           draft: false
           prerelease: ${{ inputs.prerelease }}
 
       - name: Create Jira Release
-        if: steps.jira_tickets.outputs.tickets != ''
         run: node scripts/jira/create-release.js
         env:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
@@ -167,7 +166,7 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           TICKETS="${{ steps.jira_tickets.outputs.tickets }}"
-          
+
           echo "## 🎉 릴리즈 생성 완료" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📋 릴리즈 정보" >> $GITHUB_STEP_SUMMARY
@@ -176,27 +175,26 @@ jobs:
           echo "| 🏷️ 버전 | $VERSION |" >> $GITHUB_STEP_SUMMARY
           echo "| 📦 패키지 | @bemily/design-system |" >> $GITHUB_STEP_SUMMARY
           echo "| 🔗 GitHub Release | [$VERSION](${{ steps.create_release.outputs.html_url }}) |" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ -n "$TICKETS" ]; then
             TICKET_COUNT=$(echo "$TICKETS" | tr ',' '\n' | wc -l)
             echo "| 🎫 Jira 티켓 | ${TICKET_COUNT}개 |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| 🎫 Jira 티켓 | 없음 |" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### ✅ 완료된 작업" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Git 태그 생성" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ GitHub Release 생성" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ 소스코드 아카이브 (zip, tar.gz)" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ -n "$TICKETS" ]; then
             echo "- ✅ Jira Release 생성 및 티켓 연결" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📦 설치 방법" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
           echo "npm install @bemily/design-system@${{ steps.version.outputs.version_without_v }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-

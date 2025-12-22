@@ -1,4 +1,4 @@
-import { spacing } from '../../tokens/dev/spacing';
+import { spacing } from '../../tokens/dev/helpers/spacing';
 import { SpacingDemo } from './SpacingDemo';
 
 import type { Meta, StoryObj } from '@storybook/react';
@@ -23,7 +23,7 @@ import type { Meta, StoryObj } from '@storybook/react';
  * ### 1️⃣ CSS-in-JS (vanilla-extract)
  *
  * ```typescript
- * import { spacing } from '@/tokens/dev/spacing';
+ * import { spacing } from '@/tokens/dev/helpers/spacing';
  *
  * export const box = style({
  *   // Padding

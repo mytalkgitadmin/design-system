@@ -1,8 +1,8 @@
 import { createVar, style } from '@vanilla-extract/css';
 import { recipe } from '@vanilla-extract/recipes';
 
-import { font } from '../../tokens/auto';
-import * as typography from '../../tokens/dev/typography';
+import { font } from '../../tokens';
+import * as typography from '../../tokens/dev/helpers/typography';
 
 // CSS 변수 정의
 const textColorVar = createVar();

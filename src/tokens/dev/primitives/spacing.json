@@ -1,0 +1,40 @@
+{
+  "spacing": {
+    "0": {
+      "value": "0",
+      "type": "number"
+    },
+    "4": {
+      "value": "4",
+      "type": "number"
+    },
+    "8": {
+      "value": "8",
+      "type": "number"
+    },
+    "12": {
+      "value": "12",
+      "type": "number"
+    },
+    "16": {
+      "value": "16",
+      "type": "number"
+    },
+    "24": {
+      "value": "24",
+      "type": "number"
+    },
+    "32": {
+      "value": "32",
+      "type": "number"
+    },
+    "48": {
+      "value": "48",
+      "type": "number"
+    },
+    "64": {
+      "value": "64",
+      "type": "number"
+    }
+  }
+}

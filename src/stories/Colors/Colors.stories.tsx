@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { color } from '../../tokens/auto';
+import { color } from '../../tokens';
 import { type CopyFormat, Palette } from './Palette';
 
 import type { Meta, StoryObj } from '@storybook/react';

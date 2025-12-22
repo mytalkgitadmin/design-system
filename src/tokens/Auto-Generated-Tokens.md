@@ -179,6 +179,6 @@ npm run type-check
 
 ## 📚 관련 문서
 
-- 수동 관리 토큰: `src/tokens/dev/README.md`
+- 수동 관리 토큰: `src/tokens/Dev-Tokens.md`
 - Figma Tokens: [플러그인 문서](https://www.figma.com/community/plugin/843461159747178978)
 - Style Dictionary: [공식 문서](https://amzn.github.io/style-dictionary/)

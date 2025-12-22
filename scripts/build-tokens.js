@@ -1,19 +1,39 @@
-const fs = require('fs');
-const path = require('path');
 const { execSync } = require('child_process');
+const {
+  FIGMA_TOKEN_SETS,
+  TOKEN_CATEGORIES,
+  PATHS,
+  OUTPUT_FILES,
+} = require('./style-dictionary/utils/constants');
+const {
+  resolveProjectPath,
+  writeJsonFile,
+  ensureDirectories,
+  readJsonFile,
+} = require('./style-dictionary/utils/file-helpers');
+const {
+  transformTokenReferences,
+  isEmptyToken,
+} = require('./style-dictionary/utils/token-helpers');
 
-// 토큰을 재귀적으로 처리하여 변환
+/**
+ * 토큰을 재귀적으로 처리하여 필요한 필드만 추출
+ * @param {Object} obj - 처리할 토큰 객체
+ * @returns {Object} 정제된 토큰 객체
+ */
 function processTokens(obj) {
   const result = {};
 
   Object.entries(obj).forEach(([key, value]) => {
     if (value && typeof value === 'object' && value.value !== undefined) {
+      // 토큰 리프 노드: value, type, description만 추출
       result[key] = {
         value: value.value,
         type: value.type,
         description: value.description,
       };
     } else if (value && typeof value === 'object') {
+      // 중첩 객체: 재귀 처리
       result[key] = processTokens(value);
     }
   });
@@ -21,60 +41,49 @@ function processTokens(obj) {
   return result;
 }
 
-// Primitives 토큰 분리
+/**
+ * Primitive 토큰 분리
+ * @param {Object} primitiveTokens - Primitive 토큰 셋
+ * @returns {Object} 타입별로 분리된 토큰
+ */
 function separatePrimitives(primitiveTokens) {
-  const separated = {
-    color: {},
-    font: {},
-    number: {},
-    rounded: {},
+  return {
+    color: primitiveTokens.color ? processTokens(primitiveTokens.color) : {},
+    font: primitiveTokens.typo ? processTokens(primitiveTokens.typo) : {},
+    number: primitiveTokens.number
+      ? processTokens(primitiveTokens.number.unit)
+      : {},
   };
-
-  if (primitiveTokens.color) {
-    separated.color = processTokens(primitiveTokens.color);
-  }
-
-  if (primitiveTokens.typo) {
-    separated.font = processTokens(primitiveTokens.typo);
-  }
-
-  if (primitiveTokens.number) {
-    separated.number = processTokens(primitiveTokens.number.unit);
-  }
-
-  return separated;
 }
 
-// Semantic 토큰 분리
+/**
+ * Semantic 토큰 분리
+ * @param {Object} figmaTokens - Figma 토큰 전체
+ * @returns {Object} { colors, rounded }
+ */
 function separateSemantics(figmaTokens) {
   const semanticColors = {};
   let roundedTokens = {};
 
   Object.keys(figmaTokens).forEach((setName) => {
-    if (setName.startsWith('semantic/')) {
-      const brandName = setName.replace('semantic/', '');
+    if (setName.startsWith(FIGMA_TOKEN_SETS.SEMANTIC_PREFIX)) {
       const tokens = figmaTokens[setName];
 
+      // Semantic 색상 토큰 - "color" 키로 감싸서 저장
       if (tokens.color) {
-        // brandName을 키로 사용하지 않고 바로 color 토큰을 처리
-        semanticColors[brandName] = processTokens(tokens.color);
+        semanticColors.color = processTokens(tokens.color);
       }
 
-      // rounded 토큰 추출 (shape.rounded)
-      if (tokens.shape && tokens.shape.rounded) {
+      // Rounded 토큰 (shape.rounded에서 추출)
+      if (tokens.shape?.rounded) {
         const processedRounded = processTokens(tokens.shape.rounded);
 
-        // {number.unit.0} → {number.0} 형태로 참조 수정
-        Object.keys(processedRounded).forEach((key) => {
-          if (processedRounded[key].value && typeof processedRounded[key].value === 'string') {
-            processedRounded[key].value = processedRounded[key].value.replace(
-              /\{number\.unit\.(\d+)\}/g,
-              '{number.$1}'
-            );
-          }
-        });
-
-        roundedTokens = processedRounded;
+        // 참조 변환: {number.unit.0} → {number.0}
+        roundedTokens = transformTokenReferences(
+          processedRounded,
+          /\{number\.unit\.(\d+)\}/g,
+          '{number.$1}'
+        );
       }
     }
   });
@@ -85,79 +94,131 @@ function separateSemantics(figmaTokens) {
   };
 }
 
-// Figma 토큰 읽기
-const figmaTokensPath = path.join(__dirname, '../src/tokens/figma/tokens.json');
-const figmaTokens = JSON.parse(fs.readFileSync(figmaTokensPath, 'utf8'));
+/**
+ * Brand 토큰 분리
+ * @param {Object} figmaTokens - Figma 토큰 전체
+ * @returns {Object} Brand 토큰
+ */
+function separateBrands(figmaTokens) {
+  const brandTokens = { brand: {} };
 
-// 토큰 디렉토리 생성
-const tokensDir = path.join(__dirname, '../src/tokens/auto');
-const primitivesDir = path.join(tokensDir, 'primitives');
-const semanticDir = path.join(tokensDir, 'semantic');
+  Object.keys(figmaTokens).forEach((setName) => {
+    if (setName.startsWith(FIGMA_TOKEN_SETS.BRAND_PREFIX)) {
+      const tokens = figmaTokens[setName];
 
-[tokensDir, primitivesDir, semanticDir].forEach((dir) => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-});
-
-// Primitives 토큰 분리 및 저장
-if (figmaTokens['primitive/value']) {
-  const primitives = separatePrimitives(figmaTokens['primitive/value']);
-
-  // color
-  fs.writeFileSync(
-    path.join(primitivesDir, 'color.json'),
-    JSON.stringify({ color: primitives.color }, null, 2)
-  );
-  console.log('✅ Primitives: color.json 생성 완료');
-
-  // font
-  fs.writeFileSync(
-    path.join(primitivesDir, 'font.json'),
-    JSON.stringify({ font: primitives.font }, null, 2)
-  );
-  console.log('✅ Primitives: font.json 생성 완료');
-
-  // number
-  fs.writeFileSync(
-    path.join(primitivesDir, 'number.json'),
-    JSON.stringify({ number: primitives.number }, null, 2)
-  );
-  console.log('✅ Primitives: number.json 생성 완료');
-}
-
-// Semantic 토큰 분리 및 저장
-const semantics = separateSemantics(figmaTokens);
-
-// colors
-fs.writeFileSync(
-  path.join(semanticDir, 'colors.json'),
-  JSON.stringify(semantics.colors, null, 2)
-);
-console.log('✅ Semantic: colors.json 생성 완료');
-
-// rounded (semantic에서 추출)
-if (semantics.rounded && Object.keys(semantics.rounded).length > 0) {
-  fs.writeFileSync(
-    path.join(primitivesDir, 'rounded.json'),
-    JSON.stringify({ rounded: semantics.rounded }, null, 2)
-  );
-  console.log('✅ Primitives: rounded.json 생성 완료');
-}
-
-console.log('\n📦 토큰 타입별 분리 완료!');
-
-// style-dictionary CLI를 사용하여 빌드
-try {
-  execSync('npx style-dictionary build --config style-dictionary.config.js', {
-    stdio: 'inherit',
-    cwd: path.join(__dirname, '..'),
+      if (tokens.brand && isEmptyToken(brandTokens.brand)) {
+        // 첫 번째 브랜드 토큰만 사용 (모든 브랜드 토큰이 동일하다고 가정)
+        brandTokens.brand = processTokens(tokens.brand);
+      }
+    }
   });
 
-  console.log('✅ 토큰 빌드가 완료되었습니다!');
-  console.log('   - TypeScript: src/tokens/auto/index.ts');
-  console.log('   - CSS 변수: src/tokens/auto/variables.css');
-} catch (error) {
-  console.error('❌ 토큰 빌드 중 오류 발생:', error.message);
-  process.exit(1);
+  return brandTokens;
 }
+
+/**
+ * Primitive 토큰들을 파일로 저장
+ * @param {Object} primitives - 분리된 primitive 토큰
+ * @param {string} outputDir - 출력 디렉토리
+ */
+function savePrimitiveTokens(primitives, outputDir) {
+  const primitiveFiles = [
+    {
+      category: TOKEN_CATEGORIES.COLOR,
+      fileName: OUTPUT_FILES.PRIMITIVES.COLOR,
+      data: primitives.color,
+    },
+    {
+      category: TOKEN_CATEGORIES.FONT,
+      fileName: OUTPUT_FILES.PRIMITIVES.FONT,
+      data: primitives.font,
+    },
+    {
+      category: TOKEN_CATEGORIES.NUMBER,
+      fileName: OUTPUT_FILES.PRIMITIVES.NUMBER,
+      data: primitives.number,
+    },
+  ];
+
+  primitiveFiles.forEach(({ category, fileName, data }) => {
+    writeJsonFile(
+      `${outputDir}/${fileName}`,
+      { [category]: data },
+      `✅ Primitives: ${fileName} 생성 완료`
+    );
+  });
+}
+
+/**
+ * 메인 빌드 함수
+ */
+function buildTokens() {
+  try {
+    // 1. Figma 토큰 읽기:  파일 경로 / JSON 파일 읽기
+    const figmaTokensPath = resolveProjectPath(__dirname, PATHS.FIGMA_TOKENS);
+    const figmaTokens = readJsonFile(figmaTokensPath);
+
+    // 2. 출력 디렉토리 설정 및 생성
+    const primitivesDir = resolveProjectPath(__dirname, PATHS.PRIMITIVES_DIR);
+    const semanticDir = resolveProjectPath(__dirname, PATHS.SEMANTIC_DIR);
+
+    // 경로 보장 - 없으면 폴더 생성
+    ensureDirectories([primitivesDir, semanticDir]);
+
+    // 3. Primitives 토큰 분리(color, font, number 타입별)및 저장
+    if (figmaTokens[FIGMA_TOKEN_SETS.PRIMITIVE]) {
+      const primitives = separatePrimitives(
+        figmaTokens[FIGMA_TOKEN_SETS.PRIMITIVE]
+      );
+      savePrimitiveTokens(primitives, primitivesDir);
+    }
+
+    // 5. Semantic 토큰 분리 및 저장
+    const semantics = separateSemantics(figmaTokens);
+
+    writeJsonFile(
+      `${semanticDir}/${OUTPUT_FILES.SEMANTIC.COLORS}`,
+      semantics.colors,
+      `✅ Semantic: ${OUTPUT_FILES.SEMANTIC.COLORS} 생성 완료`
+    );
+
+    // 6. Rounded 토큰 저장 (semantic에서 추출)
+    if (!isEmptyToken(semantics.rounded)) {
+      writeJsonFile(
+        `${primitivesDir}/${OUTPUT_FILES.PRIMITIVES.ROUNDED}`,
+        { [TOKEN_CATEGORIES.ROUNDED]: semantics.rounded },
+        `✅ Primitives: ${OUTPUT_FILES.PRIMITIVES.ROUNDED} 생성 완료`
+      );
+    }
+    console.log('\n📦 토큰 타입별 분리 완료!');
+    // 4. Brand 토큰 분리 및 저장
+    const brands = separateBrands(figmaTokens);
+
+    if (!isEmptyToken(brands.brand)) {
+      writeJsonFile(
+        `${semanticDir}/${OUTPUT_FILES.SEMANTIC.BRANDS}`,
+        brands,
+        `✅ Semantic: ${OUTPUT_FILES.SEMANTIC.BRANDS} 생성 완료`
+      );
+    }
+
+    // 7. Style Dictionary 빌드 실행
+    const projectRoot = resolveProjectPath(__dirname, '.');
+    execSync('npx style-dictionary build --config style-dictionary.config.js', {
+      stdio: 'inherit',
+      cwd: projectRoot,
+    });
+
+    console.log(
+      `✅ 토큰 빌드가 완료되었습니다!
+  - TypeScript: src/tokens/index.ts
+  - CSS 변수: src/tokens/variables.css`
+    );
+  } catch (error) {
+    console.error('❌ 토큰 빌드 중 오류 발생:', error.message);
+    process.exit(1);
+  }
+}
+
+// 스크립트 실행
+buildTokens();

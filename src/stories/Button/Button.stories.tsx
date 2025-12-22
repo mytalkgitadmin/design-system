@@ -1,4 +1,4 @@
-import { color } from '../../tokens/auto';
+import { color } from '../../tokens';
 import { Button } from './index';
 import {
   BUTTON_COLOR_PRESETS,

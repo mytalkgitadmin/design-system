@@ -2,12 +2,15 @@ import React from 'react';
 
 import { assignInlineVars } from '@vanilla-extract/dynamic';
 
-import { theme } from '../../tokens/auto';
-import { type TextProps, typographyPresets } from '../../tokens/dev/typography';
+import { color as colors } from '../../tokens/';
+import {
+  type TextProps,
+  typographyPresets,
+} from '../../tokens/dev/helpers/typography';
 
 import { textStyle, textVars } from './Text.css';
 
-export type { TextProps } from '../../tokens/dev/typography';
+export type { TextProps } from '../../tokens/dev/helpers/typography';
 
 export const Text = ({
   preset,
@@ -15,7 +18,7 @@ export const Text = ({
   weight,
   lineHeight,
   letterSpacing,
-  color = theme.brand1.text.title,
+  color = colors.text.primary,
   align,
   textWrap,
   wordBreak,

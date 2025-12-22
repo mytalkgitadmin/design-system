@@ -1,0 +1,186 @@
+{
+  "color": {
+    "bg": {
+      "default": {
+        "value": "{color.base.white}",
+        "type": "color"
+      },
+      "subtle": {
+        "value": "{color.gray.50}",
+        "type": "color"
+      },
+      "dim": {
+        "value": "{color.alpha.black64}",
+        "type": "color"
+      },
+      "muted": {
+        "value": "{color.gray.100}",
+        "type": "color"
+      },
+      "disabled": {
+        "value": "{color.gray.200}",
+        "type": "color"
+      },
+      "inverse": {
+        "value": "{color.gray.900}",
+        "type": "color"
+      }
+    },
+    "border": {
+      "strong": {
+        "value": "{color.gray.300}",
+        "type": "color"
+      },
+      "default": {
+        "value": "{color.gray.200}",
+        "type": "color"
+      },
+      "disabled": {
+        "value": "{color.gray.400}",
+        "type": "color"
+      },
+      "inverse": {
+        "value": "{color.base.white}",
+        "type": "color"
+      },
+      "thumbnail": {
+        "value": "{color.alpha.black8}",
+        "type": "color"
+      },
+      "negative-soft": {
+        "value": "{color.red.200}",
+        "type": "color"
+      },
+      "negative-strong": {
+        "value": "{color.red.600}",
+        "type": "color"
+      },
+      "positive-soft": {
+        "value": "{color.green.200}",
+        "type": "color"
+      },
+      "positive-strong": {
+        "value": "{color.green.600}",
+        "type": "color"
+      },
+      "warning-soft": {
+        "value": "{color.yellow.200}",
+        "type": "color"
+      },
+      "warning-strong": {
+        "value": "{color.yellow.600}",
+        "type": "color"
+      }
+    },
+    "divider": {
+      "default": {
+        "value": "{color.gray.200}",
+        "type": "color"
+      },
+      "soft": {
+        "value": "{color.gray.100}",
+        "type": "color"
+      },
+      "strong": {
+        "value": "{color.gray.300}",
+        "type": "color"
+      },
+      "inverse": {
+        "value": "{color.base.white}",
+        "type": "color"
+      }
+    },
+    "text": {
+      "secondary": {
+        "value": "{color.gray.700}",
+        "type": "color"
+      },
+      "primary": {
+        "value": "{color.gray.900}",
+        "type": "color"
+      },
+      "tertiary": {
+        "value": "{color.gray.600}",
+        "type": "color"
+      },
+      "muted": {
+        "value": "{color.gray.500}",
+        "type": "color"
+      },
+      "disabled": {
+        "value": "{color.gray.400}",
+        "type": "color"
+      },
+      "inverse": {
+        "value": "{color.base.white}",
+        "type": "color"
+      },
+      "link": {
+        "value": "{brand.strong}",
+        "type": "color"
+      },
+      "negative": {
+        "value": "{color.red.600}",
+        "type": "color"
+      },
+      "positive": {
+        "value": "{color.green.600}",
+        "type": "color"
+      },
+      "warning": {
+        "value": "{color.yellow.600}",
+        "type": "color"
+      }
+    },
+    "icon": {
+      "primary": {
+        "value": "{color.gray.800}",
+        "type": "color"
+      },
+      "fill": {
+        "value": "{color.gray.300}",
+        "type": "color"
+      },
+      "inverse": {
+        "value": "{color.base.white}",
+        "type": "color"
+      },
+      "secondary": {
+        "value": "{color.gray.600}",
+        "type": "color"
+      },
+      "disabled": {
+        "value": "{color.gray.400}",
+        "type": "color"
+      },
+      "muted": {
+        "value": "{color.gray.500}",
+        "type": "color"
+      },
+      "negative": {
+        "value": "{color.red.600}",
+        "type": "color"
+      },
+      "positive": {
+        "value": "{color.green.600}",
+        "type": "color"
+      },
+      "warning": {
+        "value": "{color.yellow.600}",
+        "type": "color"
+      },
+      "negative-soft": {
+        "value": "{color.red.100}",
+        "type": "color"
+      },
+      "positive-soft": {
+        "value": "{color.green.100}",
+        "type": "color"
+      },
+      "warning-soft": {
+        "value": "{color.yellow.100}",
+        "type": "color"
+      }
+    }
+  }
+}

@@ -6,8 +6,10 @@
 
 ```
 src/tokens/dev/
-├─ rounded.ts              # ✏️ CSS 변수 참조 JS 토큰
+├─ primitives/
+│  └─ zIndex.json          # ✏️ Z-Index 토큰 정의
 ├─ rounded.global.css.ts   # ✏️ Tailwind 스타일 유틸리티 클래스
+├─ zIndex.global.css.ts    # ✏️ Z-Index 유틸리티 클래스
 ├─ spacing.ts              # ✏️ CSS 변수 참조 JS 토큰
 └─ spacing.global.css.ts   # ✏️ Tailwind 스타일 유틸리티 클래스 (예정)
 ```
@@ -16,46 +18,41 @@ src/tokens/dev/
 
 ### Figma 토큰 (`src/tokens/`) vs 개발 토큰 (`src/tokens/dev/`)
 
-| 항목 | Figma 토큰 | 개발 토큰 |
-|------|-----------|----------|
-| **관리** | 🤖 자동 생성 | ✏️ 수동 관리 |
-| **소스** | Figma 디자이너 | 개발자 |
-| **형식** | 원시 값 (숫자, 색상) | CSS 변수 참조, 유틸리티 |
-| **용도** | 기본 토큰 제공 | 개발 편의성 향상 |
-| **예시** | `rounded.md = 12` | `rounded.md = 'var(--rounded-md)'` |
+| 항목     | Figma 토큰           | 개발 토큰                 |
+| -------- | -------------------- | ------------------------- |
+| **관리** | 🤖 자동 생성         | ✏️ 수동 관리              |
+| **소스** | Figma 디자이너       | 개발자                    |
+| **형식** | 원시 값 (숫자, 색상) | CSS 변수 참조, 유틸리티   |
+| **용도** | 기본 토큰 제공       | 개발 편의성 향상          |
+| **예시** | `rounded.md = 12`    | `.rounded-md` HTML 클래스 |
 
 ## 📝 파일별 설명
 
-### 1. rounded.ts
+### 1. zIndex.global.css.ts
 
-**목적:** CSS-in-JS에서 사용하기 편한 형태로 제공
+**목적:** 레이어 순서 관리를 위한 시맨틱한 z-index 클래스 제공
 
 ```typescript
 /**
- * CSS 변수를 참조하는 JavaScript 토큰
+ * Z-Index 유틸리티 클래스
  */
-export const rounded = {
-  md: 'var(--rounded-md)',  // CSS 변수 참조
-} as const;
+globalStyle('.z-modal', {
+  zIndex: 'var(--z-modal)',
+});
 
-export const roundedPx = {
-  md: 12,  // px 값 (Storybook 등에서 사용)
-} as const;
+globalStyle('.z-tooltip', {
+  zIndex: 'var(--z-tooltip)',
+});
 ```
 
 **사용처:**
-```typescript
-import { rounded } from '@/tokens/dev/rounded';
 
-// Vanilla Extract
-const card = style({
-  borderRadius: rounded.md, // 'var(--rounded-md)' → 런타임 적용
-});
+```tsx
+import '@/tokens/dev/zIndex.global.css';
 
-// styled-components
-const Button = styled.button`
-  border-radius: ${rounded.sm};
-`;
+<div className="z-modal">모달</div>
+<div className="z-tooltip">툴팁</div>
+<div className="z-overlay">오버레이</div>
 ```
 
 ---
@@ -69,16 +66,17 @@ const Button = styled.button`
  * Tailwind 스타일 유틸리티 클래스
  */
 globalStyle('.rounded-md', {
-  borderRadius: 'var(--rounded-md)'
+  borderRadius: 'var(--rounded-md)',
 });
 
 globalStyle('.rounded-t-lg', {
   borderTopLeftRadius: 'var(--rounded-lg)',
-  borderTopRightRadius: 'var(--rounded-lg)'
+  borderTopRightRadius: 'var(--rounded-lg)',
 });
 ```
 
 **사용처:**
+
 ```tsx
 import '@/tokens/dev/rounded.global.css';
 
@@ -113,40 +111,42 @@ export const spacing = {
    - 예: `.rounded-t-md` (상단만 둥글게)
    - 예: 음수 spacing (`-0.8rem`)
 
-2. **CSS 변수 참조 래퍼**
-   - 예: `rounded.md = 'var(--rounded-md)'` (타입 안전성)
+2. **HTML 클래스 유틸리티**
+   - 예: `.rounded-md` (빠른 프로토타이핑용)
 
 3. **특수 케이스**
-   - 예: `roundedPx` (Storybook에서 px 값 필요)
    - 예: `z-index` (레이어 관리)
 
 #### ❌ 추가하지 말아야 하는 경우
 
 1. **Figma에서 이미 제공하는 값**
-   - ❌ `rounded.md = 12` (이미 `src/tokens/index.ts`에 있음)
-   - ✅ CSS 변수로 사용: `var(--rounded-md)`
+   - ❌ `rounded.md = 12` (이미 `src/tokens/auto/index.ts`에 있음)
+   - ✅ 자동 생성 토큰 사용: `import { rounded } from '@/tokens/auto'`
 
-2. **단순 중복**
-   - ❌ 같은 값을 다른 형태로 재정의
+2. **CSS 변수 참조 래퍼**
+   - ❌ `rounded.md = 'var(--rounded-md)'` (직접 사용으로 충분)
+   - ✅ 직접 사용: `borderRadius: 'var(--rounded-md)'`
 
 ---
 
 ## 🔄 Figma 토큰과의 관계
 
 ```
-[Figma 토큰]                [개발 토큰]
-src/tokens/                 src/tokens/dev/
-  ↓                            ↓
-variables.css                rounded.ts (CSS 변수 참조)
---rounded-md: 1.2rem   ←─────rounded.md = 'var(--rounded-md)'
+[Figma 토큰]                    [개발 토큰]
+src/tokens/auto/                src/tokens/dev/
+  ↓                                ↓
+variables.css                   rounded.global.css.ts
+--rounded-md: 1.2rem      →     .rounded-md { border-radius: var(--rounded-md) }
 
-index.ts                     rounded.global.css.ts
-rounded.md = 12        ←─────.rounded-md { border-radius: var(--rounded-md) }
+index.ts
+rounded.md = 12           →     Storybook, 컴포넌트에서 직접 사용
 ```
 
 **핵심:**
-- Figma 토큰이 **원천 (Single Source of Truth)**
-- 개발 토큰은 Figma 토큰을 **참조하여 편의 기능 제공**
+
+- Figma 토큰(`auto/`)이 **원천 (Single Source of Truth)**
+- 개발 토큰(`dev/`)은 **HTML 클래스 유틸리티만 제공**
+- 숫자 값, CSS 변수는 `auto/`에서 직접 사용
 
 ---
 
@@ -154,9 +154,9 @@ rounded.md = 12        ←─────.rounded-md { border-radius: var(--roun
 
 ### 새 토큰 추가 전
 
-- [ ] Figma 토큰에 이미 존재하는가? (`src/tokens/index.ts` 확인)
-- [ ] CSS 변수로 대체 가능한가? (`src/tokens/variables.css` 확인)
-- [ ] 정말 개발 편의를 위해 필요한가?
+- [ ] Figma 토큰에 이미 존재하는가? (`src/tokens/auto/index.ts` 확인)
+- [ ] CSS 변수로 대체 가능한가? (`src/tokens/auto/variables.css` 확인)
+- [ ] HTML 클래스가 정말 필요한가? (프로토타이핑 목적인가?)
 
 ### 추가할 때
 
@@ -174,15 +174,27 @@ rounded.md = 12        ←─────.rounded-md { border-radius: var(--roun
 
 ## 🎨 현재 제공 중인 토큰
 
-### rounded
-- **파일:** `rounded.ts`, `rounded.global.css.ts`
-- **목적:** border-radius 토큰 + 유틸리티 클래스
+### zIndex
+
+- **파일:** `primitives/zIndex.json`, `zIndex.global.css.ts`
+- **목적:** 레이어 순서 관리를 위한 시맨틱 z-index 값
 - **제공:**
-  - JS 토큰: `rounded.md = 'var(--rounded-md)'`
-  - HTML 클래스: `.rounded-md`, `.rounded-t-lg`
-  - px 값: `roundedPx.md = 12` (Storybook용)
+  - 토큰 값: `zIndex.modal = 1400`, `zIndex.tooltip = 1800` 등
+  - HTML 클래스: `.z-modal`, `.z-tooltip`, `.z-overlay` 등
+  - CSS 변수: `var(--z-modal)`, `var(--z-tooltip)` 등
+- **참고:** Figma가 아닌 개발자가 직접 관리하는 토큰
+
+### rounded
+
+- **파일:** `rounded.global.css.ts`
+- **목적:** HTML 유틸리티 클래스 제공
+- **제공:**
+  - HTML 클래스: `.rounded-md`, `.rounded-t-lg`, `.rounded-tl-md` 등
+  - 전체/방향별/개별 코너 적용 가능
+- **참고:** 숫자 값은 `@/tokens/auto`에서 직접 사용
 
 ### spacing
+
 - **파일:** `spacing.ts`
 - **목적:** 여백 토큰 (rem 단위)
 - **제공:**
@@ -192,5 +204,6 @@ rounded.md = 12        ←─────.rounded-md { border-radius: var(--roun
 ---
 
 ## 📚 관련 문서
-- 자동 생성 토큰: `src/tokens/README.md`
+
+- 자동 생성 토큰: `src/tokens/Auto-Generated-Tokens.md`
 - Vanilla Extract: [공식 문서](https://vanilla-extract.style/)

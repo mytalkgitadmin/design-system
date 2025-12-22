@@ -1,4 +1,4 @@
-import { theme } from '../../tokens/auto';
+import { color } from '../../tokens';
 import {
   fontSizeOptions as TEXT_SIZES,
   fontWeightOptions as TEXT_WEIGHTS,
@@ -9,7 +9,7 @@ import {
   textElement,
   textWrapOptions as TEXT_WRAPS,
   wordBreakOptions as WORD_BREAKS,
-} from '../../tokens/dev/typography';
+} from '../../tokens/dev/helpers/typography';
 import { Text } from './index';
 
 import type { Meta, StoryObj } from '@storybook/react';
@@ -211,7 +211,7 @@ const meta = {
     weight: undefined,
     lineHeight: undefined,
     letterSpacing: undefined,
-    color: theme.brand1.text.title,
+    color: color.text.primary,
     align: undefined,
     underline: false,
     truncate: false,
