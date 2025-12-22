@@ -1,0 +1,202 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_override:
+        description: '버전 지정 (비워두면 package.json 사용)'
+        required: false
+        type: string
+        default: ''
+      release_notes:
+        description: '추가 릴리즈 노트'
+        required: false
+        type: string
+        default: ''
+      prerelease:
+        description: '프리릴리즈 여부'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 전체 히스토리 필요 (이전 태그 조회용)
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '23.11.0'
+
+      - name: Get version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version_override }}" ]; then
+            VERSION="${{ inputs.version_override }}"
+            echo "📝 수동 지정된 버전 사용: $VERSION"
+          else
+            VERSION=$(node -p "require('./package.json').version")
+            echo "📦 package.json 버전 사용: $VERSION"
+          fi
+          
+          # v 접두사 추가
+          if [[ ! "$VERSION" =~ ^v ]]; then
+            VERSION="v${VERSION}"
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_without_v=${VERSION#v}" >> $GITHUB_OUTPUT
+          echo "🏷️  릴리즈 버전: $VERSION"
+
+      - name: Check if tag exists
+        id: check_tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⚠️  태그 $VERSION 이(가) 이미 존재합니다!"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✅ 태그 $VERSION 생성 가능"
+          fi
+
+      - name: Create Git tag
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "$VERSION"
+          echo "✅ Git 태그 생성 완료: $VERSION"
+
+      - name: Get previous tag
+        id: previous_tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -v "^${VERSION}$" | head -n 1)
+          
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "previous_tag=" >> $GITHUB_OUTPUT
+            echo "📝 이전 태그 없음 (첫 릴리즈)"
+          else
+            echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+            echo "📝 이전 태그: $PREVIOUS_TAG"
+          fi
+
+      - name: Extract Jira tickets from commits
+        id: jira_tickets
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PREVIOUS_TAG="${{ steps.previous_tag.outputs.previous_tag }}"
+          
+          if [ -z "$PREVIOUS_TAG" ]; then
+            # 첫 릴리즈: 모든 커밋
+            COMMITS=$(git log --pretty=format:"%s %b")
+          else
+            # 이전 태그부터 현재까지
+            COMMITS=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"%s %b")
+          fi
+          
+          # Jira 티켓 추출 (PROJ-123 패턴)
+          TICKETS=$(echo "$COMMITS" | grep -oE '\b[A-Z]+-[0-9]+\b' | sort -u | tr '\n' ',' | sed 's/,$//')
+          
+          if [ -z "$TICKETS" ]; then
+            echo "tickets=" >> $GITHUB_OUTPUT
+            echo "📝 Jira 티켓 없음"
+          else
+            echo "tickets=$TICKETS" >> $GITHUB_OUTPUT
+            echo "📝 추출된 Jira 티켓: $TICKETS"
+          fi
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          release_name: Release ${{ steps.version.outputs.version }}
+          body: |
+            ## 🎉 Release ${{ steps.version.outputs.version }}
+            
+            ${{ inputs.release_notes }}
+            
+            ### 📦 배포 정보
+            - **버전**: ${{ steps.version.outputs.version }}
+            - **Nexus Registry**: npm-bemily
+            - **Package**: @bemily/design-system@${{ steps.version.outputs.version_without_v }}
+            
+            ### 📝 설치 방법
+            ```bash
+            npm install @bemily/design-system@${{ steps.version.outputs.version_without_v }}
+            # 또는
+            npm update @bemily/design-system
+            ```
+            
+            ### 🔗 관련 링크
+            - [Nexus Repository](https://nexus.danalentertainment.com/#browse/browse:npm-bemily)
+            - [Jira Release](https://jira.danalentertainment.com/projects/${{ secrets.JIRA_PROJECT }}/versions)
+            
+            ---
+            _이 릴리즈는 GitHub Actions에 의해 자동으로 생성되었습니다._
+          draft: false
+          prerelease: ${{ inputs.prerelease }}
+
+      - name: Create Jira Release
+        if: steps.jira_tickets.outputs.tickets != ''
+        run: node scripts/jira/create-release.js
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_PROJECT: ${{ secrets.JIRA_PROJECT }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          JIRA_TICKETS: ${{ steps.jira_tickets.outputs.tickets }}
+          GITHUB_RELEASE_URL: ${{ steps.create_release.outputs.html_url }}
+
+      - name: Summary
+        if: always()
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TICKETS="${{ steps.jira_tickets.outputs.tickets }}"
+          
+          echo "## 🎉 릴리즈 생성 완료" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 릴리즈 정보" >> $GITHUB_STEP_SUMMARY
+          echo "| 항목 | 내용 |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏷️ 버전 | $VERSION |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📦 패키지 | @bemily/design-system |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔗 GitHub Release | [$VERSION](${{ steps.create_release.outputs.html_url }}) |" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -n "$TICKETS" ]; then
+            TICKET_COUNT=$(echo "$TICKETS" | tr ',' '\n' | wc -l)
+            echo "| 🎫 Jira 티켓 | ${TICKET_COUNT}개 |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🎫 Jira 티켓 | 없음 |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ 완료된 작업" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Git 태그 생성" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ GitHub Release 생성" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ 소스코드 아카이브 (zip, tar.gz)" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -n "$TICKETS" ]; then
+            echo "- ✅ Jira Release 생성 및 티켓 연결" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 설치 방법" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "npm install @bemily/design-system@${{ steps.version.outputs.version_without_v }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
