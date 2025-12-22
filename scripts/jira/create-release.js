@@ -173,13 +173,12 @@ async function main() {
 
   if (tickets.length === 0) {
     console.log('⚠️  연결할 Jira 티켓이 없습니다.');
-    console.log('✅ 릴리즈 생성을 건너뜁니다.');
-    return;
+    console.log('📝 릴리즈만 생성하고 티켓 연결은 건너뜁니다.\n');
+  } else {
+    console.log(
+      `🎫 ${JIRA_PROJECT} 프로젝트 티켓 ${tickets.length}개 발견: ${tickets.join(', ')}\n`
+    );
   }
-
-  console.log(
-    `🎫 ${JIRA_PROJECT} 프로젝트 티켓 ${tickets.length}개 발견: ${tickets.join(', ')}\n`
-  );
 
   // 기존 릴리즈 확인
   console.log('🔍 기존 릴리즈 확인 중...');
@@ -208,22 +207,26 @@ async function main() {
     version = await createRelease(JIRA_PROJECT, RELEASE_VERSION, description);
   }
 
-  // 티켓 연결
-  console.log(`\n🔗 티켓 연결 중... (${tickets.length}개)`);
+  // 티켓 연결 (티켓이 있을 때만)
   let successCount = 0;
   let failCount = 0;
 
-  for (const ticket of tickets) {
-    const success = await linkTicketToRelease(
-      ticket,
-      version.id,
-      RELEASE_VERSION
-    );
-    if (success) {
-      successCount++;
-    } else {
-      failCount++;
+  if (tickets.length > 0) {
+    console.log(`\n🔗 티켓 연결 중... (${tickets.length}개)`);
+    for (const ticket of tickets) {
+      const success = await linkTicketToRelease(
+        ticket,
+        version.id,
+        RELEASE_VERSION
+      );
+      if (success) {
+        successCount++;
+      } else {
+        failCount++;
+      }
     }
+  } else {
+    console.log('\n⏭️  연결할 티켓이 없어 티켓 연결을 건너뜁니다.');
   }
 
   // 결과 요약
@@ -232,9 +235,13 @@ async function main() {
   console.log('='.repeat(60));
   console.log(`📦 Release: ${RELEASE_VERSION}`);
   console.log(`🔗 Release ID: ${version.id}`);
-  console.log(`✅ 성공: ${successCount}개`);
-  if (failCount > 0) {
-    console.log(`⚠️  실패: ${failCount}개`);
+  if (tickets.length > 0) {
+    console.log(`✅ 티켓 연결 성공: ${successCount}개`);
+    if (failCount > 0) {
+      console.log(`⚠️  티켓 연결 실패: ${failCount}개`);
+    }
+  } else {
+    console.log(`📝 연결된 티켓: 없음`);
   }
   console.log(
     `🌐 Jira URL: ${JIRA_BASE_URL}/projects/${JIRA_PROJECT}/versions/${version.id}`
