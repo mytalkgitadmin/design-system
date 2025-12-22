@@ -8,11 +8,14 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
     "jsx": "react-jsx",
+
+    /* Build */
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "./dist",
 
     /* Linting */
     "strict": true,

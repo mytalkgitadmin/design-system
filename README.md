@@ -132,6 +132,14 @@ GitHub Secrets에 Chromatic 토큰을 등록해야 합니다:
 
 ## 🛠️ 주요 명령어
 
+### 패키지 빌드 및 배포
+
+```bash
+npm run build              # 패키지 빌드 (dist/ 폴더 생성)
+npm publish --dry-run      # 배포 테스트 (실제 배포 안 함)
+npm publish                # Nexus에 배포
+```
+
 ### Storybook
 
 ```bash
@@ -209,6 +217,140 @@ design-system/
 7. 자동 실행:
    - ✅ Storybook 빌드 + Chromatic 배포
    - ✅ Jira 티켓 자동 완료
+
+---
+
+## 📦 패키지 사용하기
+
+이 디자인 시스템은 npm 패키지로 배포되어 다른 프로젝트에서 설치하여 사용할 수 있습니다.
+
+### 설치 방법
+
+#### 1. 프로젝트에 .npmrc 파일 생성
+
+다른 프로젝트에서 이 패키지를 설치하려면 먼저 `.npmrc` 파일을 생성해야 합니다:
+
+```bash
+echo "@bemily:registry=https://nexus.danalentertainment.com/repository/npm-bemily/" > .npmrc
+```
+
+#### 2. 패키지 설치
+
+```bash
+npm install @bemily/design-system
+```
+
+#### 3. CSS 파일 import (필수)
+
+앱의 최상단에서 한 번만 import 하세요:
+
+```typescript
+// App.tsx 또는 main.tsx
+import '@bemily/design-system/styles.css';
+```
+
+#### 4. 사용 예시
+
+```typescript
+import { Button, Text, Icon, theme } from '@bemily/design-system';
+import '@bemily/design-system/styles.css'; // CSS import
+
+function App() {
+  return (
+    <div>
+      <Button label="클릭하세요" variant="solid" color="primary" />
+      <Text preset="body1">안녕하세요</Text>
+      <Icon name="mdi:home" size={24} color="primary" />
+    </div>
+  );
+}
+```
+
+### 사용 가능한 컴포넌트
+
+- **Button**: 다양한 스타일의 버튼 컴포넌트
+- **Text**: 타이포그래피 시스템 기반 텍스트 컴포넌트
+- **Icon**: Iconify 아이콘 래퍼 컴포넌트
+
+### 사용 가능한 토큰
+
+```typescript
+import { theme, color, spacing, typographyPresets } from '@bemily/design-system';
+
+// 테마 토큰 사용
+const primaryColor = theme.brand1.btn.primaryDefault;
+
+// 컬러 토큰 사용
+const blueColor = color.blue[500];
+
+// 스페이싱 토큰 사용
+const padding = spacing.md;
+
+// 타이포그래피 프리셋 사용
+const bodyStyle = typographyPresets.body1;
+```
+
+---
+
+## 🚀 패키지 배포하기 (관리자용)
+
+### 배포 전 준비
+
+#### 1. 환경변수 설정
+
+Nexus 인증을 위한 환경변수를 설정합니다:
+
+```bash
+# Base64 인코딩
+echo -n 'username:password' | base64
+
+# 환경변수 설정 (~/.zshrc 또는 ~/.bashrc에 추가)
+export NEXUS_AUTH_TOKEN="인코딩된_토큰"
+
+# 설정 적용
+source ~/.zshrc
+```
+
+### 배포 프로세스
+
+#### 1. 버전 업데이트
+
+```bash
+# package.json의 version 필드 수정
+# 예: "0.1.0" -> "0.1.1"
+```
+
+#### 2. 빌드
+
+```bash
+npm run build
+```
+
+빌드가 성공하면 `dist/` 폴더에 다음 파일들이 생성됩니다:
+
+- `index.js` (CommonJS)
+- `index.mjs` (ES Module)
+- `index.d.ts` (TypeScript 타입 정의)
+
+#### 3. 배포 테스트
+
+```bash
+npm publish --dry-run
+```
+
+어떤 파일들이 배포될지 확인합니다.
+
+#### 4. 실제 배포
+
+```bash
+npm publish
+```
+
+#### 5. 배포 확인
+
+Nexus UI에서 배포된 패키지를 확인합니다:
+
+https://nexus.danalentertainment.com/#browse/browse:npm-bemily
 
 ---
 

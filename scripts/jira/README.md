@@ -42,7 +42,8 @@ gh auth login
 
 프로젝트 관리자가 다음 Secrets를 설정해야 합니다:
 
-**GitHub Repository** → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
+**GitHub Repository** → **Settings** → **Secrets and variables** → **Actions** → **New repository
+secret**
 
 | Secret Name       | 설명                      | 예시                                |
 | ----------------- | ------------------------- | ----------------------------------- |
@@ -198,7 +199,8 @@ GitHub Actions가 자동으로:
 
 ### 스마트 커밋 도움말
 
-언제든지 `npm run commit` 명령어로 인터랙티브하게 커밋을 작성하거나, `.gitmessage` 템플릿을 참고하세요.
+언제든지 `npm run commit` 명령어로 인터랙티브하게 커밋을 작성하거나, `.gitmessage` 템플릿을
+참고하세요.
 
 ---
 
@@ -242,7 +244,6 @@ PR이 머지되면 다음 작업이 자동으로 수행됩니다:
    ```
 
 2. **Jira 티켓 상태 변경**
-
    - `jira-workflow-config.json`의 `end` transition ID 사용
    - 티켓을 "완료" 상태로 자동 전환
 
@@ -443,7 +444,6 @@ gh auth login
 scripts/jira/
 ├── create-jira-only.js           # CLI 티켓 생성 도구
 ├── process-smart-commits.js      # 스마트 커밋 처리 스크립트
-├── validate-commit-msg.js        # 커밋 메시지 검증 및 안내 (Husky 훅)
 ├── jira-create-config.json       # 티켓 생성 기본 설정
 ├── jira-workflow-config.json     # 워크플로우 전환 설정
 └── README.md                     # 이 문서
