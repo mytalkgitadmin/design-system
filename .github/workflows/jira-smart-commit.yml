@@ -30,10 +30,20 @@ jobs:
           # 푸시된 커밋들의 정보 가져오기
           if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
             # 새 브랜치인 경우 최근 1개 커밋만
+            echo "📌 새 브랜치 감지: 최근 1개 커밋 처리"
             git log -1 --pretty=format:"%H|%s|%b" > commits.txt
           else
-            # 기존 브랜치인 경우 before..after 범위
-            git log ${{ github.event.before }}..${{ github.event.after }} --pretty=format:"%H|%s|%b" > commits.txt
+            # 이전 커밋이 존재하는지 확인 (force push 대응)
+            if git rev-parse --verify "${{ github.event.before }}" >/dev/null 2>&1; then
+              # 기존 브랜치인 경우 before..after 범위
+              echo "📝 커밋 범위: ${{ github.event.before }}..${{ github.event.after }}"
+              git log ${{ github.event.before }}..${{ github.event.after }} --pretty=format:"%H|%s|%b" > commits.txt
+            else
+              # Force push 또는 rebase로 이전 커밋이 없는 경우
+              echo "⚠️  Force push 감지: 이전 커밋(${{ github.event.before }})이 히스토리에 없습니다"
+              echo "📌 최근 1개 커밋만 처리합니다"
+              git log -1 --pretty=format:"%H|%s|%b" > commits.txt
+            fi
           fi
           
           echo "커밋 개수: $(wc -l < commits.txt)"
