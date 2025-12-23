@@ -7,3 +7,4 @@ dist
 .npmrc
 storybook-static
 build-storybook.log
+.temp
