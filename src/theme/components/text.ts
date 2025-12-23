@@ -27,9 +27,17 @@ export type TextPreset =
 export type TextTheme = {
   defaultPreset: TextPreset;
   defaultColor: string;
+  colorSchemes: {
+    brand1: string;
+    brand2: string;
+  };
 };
 
 export const textTheme: TextTheme = {
   defaultPreset: 'body1',
   defaultColor: '#2f3744',
+  colorSchemes: {
+    brand1: '#4f7cff', // theme.brand1.default
+    brand2: '#e900af', // theme.brand2.default
+  },
 };

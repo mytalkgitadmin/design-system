@@ -40,7 +40,14 @@ export const Text = ({
   const finalLineHeight = lineHeight ?? presetValues?.lineHeight ?? 'normal';
   const finalLetterSpacing =
     letterSpacing ?? presetValues?.letterSpacing ?? 'normal';
-  const finalColor = color ?? textTheme.defaultColor;
+
+  // 컬러 처리
+  // 1. color가 없으면 기본 색상 사용
+  // 2. Theme에 정의된 프리셋인지 확인 (brand1, brand2)
+  // 3. 프리셋이 아니면 커스텀 컬러로 처리
+  const colorScheme =
+    textTheme.colorSchemes[color as keyof typeof textTheme.colorSchemes];
+  const finalColor = color ? colorScheme ?? color : textTheme.defaultColor;
 
   // HTML 태그 결정: as prop > preset 기본값 > 'p'
   const Component = as || presetValues?.element || 'p';
