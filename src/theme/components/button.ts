@@ -23,7 +23,8 @@ export type ColorScheme = {
 export type ButtonTheme = {
   defaultSize: ButtonSize;
   defaultVariant: ButtonVariant;
-  radius?: number; // undefined면 global.radius 사용
+  radius?: number; // undefined면 global.radius.sm 사용
+  fontWeight?: number; // undefined면 global.typography.fontWeight.semibold 사용
 
   colorSchemes: {
     primary: ColorScheme;
@@ -34,6 +35,8 @@ export type ButtonTheme = {
 export const buttonTheme: ButtonTheme = {
   defaultSize: 'md',
   defaultVariant: 'solid',
+  // radius: undefined, // global.radius.sm 사용
+  // fontWeight: undefined, // global.typography.fontWeight.semibold 사용
 
   colorSchemes: {
     primary: {

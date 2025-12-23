@@ -5,6 +5,12 @@
 
 export type TypographyTheme = {
   fontFamily: string;
+  fontWeight: {
+    regular: number;
+    medium: number;
+    semibold: number;
+    bold: number;
+  };
   fontSize: {
     xs: number;
     sm: number;
@@ -23,6 +29,12 @@ export type TypographyTheme = {
 
 export const typographyTheme: TypographyTheme = {
   fontFamily: 'Pretendard',
+  fontWeight: {
+    regular: 400,
+    medium: 500,
+    semibold: 600,
+    bold: 700,
+  },
   fontSize: {
     xs: 11,
     sm: 12,

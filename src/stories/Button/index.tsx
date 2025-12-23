@@ -1,94 +1,97 @@
+import React from 'react';
+
 import { assignInlineVars } from '@vanilla-extract/dynamic';
 
-import { theme } from '../../tokens';
+import { useTheme } from '../../theme';
 import { Icon } from '../Icon';
-import { ButtonColorScheme, ButtonProps } from './types';
+import { ButtonProps } from './types';
 
 import { buttonStyle, buttonVars } from './Button.css';
 
 export type { ButtonProps } from './types';
 
-// 시맨틱 컬러 프리셋별 컬러 스킴 매핑
-const getColorScheme = (color: string): ButtonColorScheme => {
-  // 시맨틱 토큰 매핑
-  const colorPresets: Record<string, ButtonColorScheme> = {
-    primary: {
-      default: theme.brand.default,
-      hover: theme.brand.subtle,
-      active: theme.brand.strong,
-    },
-    // secondary: {
-    //   default: theme.brand.default,
-    //   hover: theme.brand.subtle,
-    //   active: theme.brand.strong,
-    // },
-    warning: {
-      default: '#ffb020',
-      hover: '#cc8a18',
-      active: '#996713',
-    },
-    success: {
-      default: '#0d964f',
-      hover: '#17824a',
-      active: '#10613a',
-    },
-    danger: {
-      default: '#d81633',
-      hover: '#c8263d',
-      active: '#c8263d',
-    },
-  };
-
-  // 시맨틱 토큰이면 해당 스킴 반환
-  if (colorPresets[color]) {
-    return colorPresets[color];
-  }
-
-  // 커스텀 컬러면 동일한 색상 사용 (hover/active 구분 없음)
-  return {
-    default: color,
-    hover: color,
-    active: color,
-  };
+const iconSize = {
+  xs: 16,
+  sm: 18,
+  md: 20,
+  lg: 24,
+  xl: 24,
 };
 
 export const Button = ({
   leftIcon,
-  variant = 'solid',
+  rightIcon,
+  icon,
+  variant,
   color = 'primary',
-  size = 'md',
+  size,
   type = 'button',
   label,
   full = false,
   disabled = false,
   onClick,
+  as,
+  href,
+  target,
 }: ButtonProps) => {
-  const colorScheme = getColorScheme(color);
+  const { global, components } = useTheme();
+  const buttonTheme = components.Button;
 
+  const Component = as === 'a' ? 'a' : 'button';
+
+  // 우선순위: props > component theme > global theme
+  const finalSize = size ?? buttonTheme.defaultSize;
+  const finalVariant = variant ?? buttonTheme.defaultVariant;
+  const finalRadius = buttonTheme.radius ?? global.radius.sm;
+  const finalFontWeight = buttonTheme.fontWeight ?? global.typography.fontWeight.semibold;
+
+  // 컬러 스킴 가져오기
+  // 1. Theme에 정의된 프리셋인지 확인
+  const colorScheme =
+    buttonTheme.colorSchemes[color as keyof typeof buttonTheme.colorSchemes];
+
+  // 2. 프리셋이 없으면 커스텀 컬러로 처리
+  const finalColorScheme = colorScheme ?? {
+    default: color,
+    hover: color,
+    active: color,
+    text: color,
+  };
+
+  // CSS Variables 주입
   const vars = assignInlineVars({
-    [buttonVars.defaultColor]: colorScheme.default,
-    [buttonVars.hoverColor]: colorScheme.hover,
-    [buttonVars.activeColor]: colorScheme.active,
-    [buttonVars.textColor]:
-      variant === 'solid' ? '#ffffff' : colorScheme.default,
-    [buttonVars.disabledColor]: '#eee',
+    [buttonVars.defaultColor]: finalColorScheme.default,
+    [buttonVars.hoverColor]: finalColorScheme.hover,
+    [buttonVars.activeColor]: finalColorScheme.active,
+    [buttonVars.textColor]: finalColorScheme.text,
+    [buttonVars.fontFamily]: global.typography.fontFamily,
+    [buttonVars.fontWeight]: String(finalFontWeight),
+    [buttonVars.borderRadius]: `${finalRadius}px`,
+    [buttonVars.disabledBgColor]: global.color.bg.disabled,
+    [buttonVars.disabledTextColor]: global.color.text.disabled,
   });
 
-  return (
-    <button
-      type={type}
-      className={buttonStyle({
-        variant,
-        size,
-        full,
-        withIcon: !!leftIcon,
-      })}
-      style={vars}
-      onClick={onClick}
-      disabled={disabled}
-    >
-      {leftIcon && <Icon name={leftIcon} size={16} />}
-      <span>{label}</span>
-    </button>
-  );
+  return React.createElement(Component, {
+    type: { type },
+    className: `${buttonStyle({
+      variant: finalVariant,
+      size: finalSize,
+      full,
+      leftIcon: !!leftIcon,
+      rightIcon: !!rightIcon,
+      icon: !!icon,
+    })}`,
+    style: { ...vars },
+    onClick: onClick,
+    disabled: disabled,
+    target: target,
+    href: href,
+    children: (
+      <>
+        {leftIcon && <Icon name={leftIcon} size={iconSize[finalSize]} />}
+        {icon ? <Icon name={icon} size={iconSize[finalSize]} /> : label}
+        {rightIcon && <Icon name={rightIcon} size={iconSize[finalSize]} />}
+      </>
+    ),
+  });
 };
