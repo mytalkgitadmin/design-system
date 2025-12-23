@@ -2,7 +2,7 @@ import React from 'react';
 
 import { assignInlineVars } from '@vanilla-extract/dynamic';
 
-import { color as colors } from '../../tokens/';
+import { useTheme } from '../../theme';
 import {
   type TextProps,
   typographyPresets,
@@ -18,7 +18,7 @@ export const Text = ({
   weight,
   lineHeight,
   letterSpacing,
-  color = colors.text.primary,
+  color,
   align,
   textWrap,
   wordBreak,
@@ -29,6 +29,9 @@ export const Text = ({
   style,
   children = `[${preset}] ABC abc 가나다 123 !@#`,
 }: TextProps) => {
+  const { components } = useTheme();
+  const textTheme = components.Text;
+
   // Preset이 있으면 preset 값을 기본으로 사용하고, 개별 속성이 있으면 오버라이드
   const presetValues = preset ? typographyPresets[preset] : undefined;
 
@@ -37,7 +40,7 @@ export const Text = ({
   const finalLineHeight = lineHeight ?? presetValues?.lineHeight ?? 'normal';
   const finalLetterSpacing =
     letterSpacing ?? presetValues?.letterSpacing ?? 'normal';
-  const finalColor = color;
+  const finalColor = color ?? textTheme.defaultColor;
 
   // HTML 태그 결정: as prop > preset 기본값 > 'p'
   const Component = as || presetValues?.element || 'p';
