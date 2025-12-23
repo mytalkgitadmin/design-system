@@ -7,6 +7,21 @@ export { Text } from './stories/Text';
 export type { TextProps } from './tokens/dev/helpers/typography';
 
 // 토큰 export
-export { color, font, number, theme } from './tokens';
-export { spacing } from './tokens/dev/helpers/spacing';
+export { color, font, number, spacing, theme } from './tokens';
 export { typographyPresets } from './tokens/dev/helpers/typography';
+
+// Theme export
+export type {
+  ButtonTheme,
+  ColorScheme,
+  ColorTheme,
+  DeepPartial,
+  GlobalTheme,
+  IconTheme,
+  RadiusTheme,
+  TextTheme,
+  Theme,
+  ThemeProviderProps,
+  TypographyTheme,
+} from './theme';
+export { createTheme, defaultTheme, ThemeProvider, useTheme } from './theme';
