@@ -33,6 +33,28 @@ export const brandBTheme = createTheme({
         },
       },
     },
+    Input: {
+      // labelFontSize는 선택사항 - 정의하지 않으면 global.typography.fontSize 사용
+      // labelFontSize: {
+      //   xs: 12,
+      //   sm: 13,
+      //   md: 14,
+      //   lg: 16,
+      //   xl: 16,
+      // },
+      colorSchemes: {
+        primary: {
+          // default, hover, error는 defaultTheme의 global 색상 사용
+          focus: theme.brand2.default, // Brand B의 focus 색상
+          focusShadow: `${theme.brand2.default}80`, // Brand B의 focus shadow (투명도 50%)
+        },
+        secondary: {
+          // default, hover, error는 defaultTheme의 global 색상 사용
+          focus: theme.brand2.subtle, // Brand B의 secondary focus 색상
+          focusShadow: `${theme.brand2.subtle}80`,
+        },
+      },
+    },
     Text: {
       colorSchemes: {
         brand1: theme.brand2.default, // Brand B의 primary 브랜드 컬러
