@@ -14,7 +14,7 @@ const ThemeContext = createContext<Theme | undefined>(undefined);
 export type ThemeProviderProps = {
   theme?: Theme;
   children: React.ReactNode;
-}
+};
 
 /**
  * ThemeProvider

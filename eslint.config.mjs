@@ -4,7 +4,8 @@ import reactHooksPlugin from 'eslint-plugin-react-hooks';
 import importPlugin from 'eslint-plugin-import';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import tseslint from 'typescript-eslint';
-
+import prettierPlugin from 'eslint-plugin-prettier';
+import prettierConfig from 'eslint-config-prettier';
 /**
  * ESLint 설정 (디자인 시스템용 Flat Config)
  *
@@ -22,6 +23,8 @@ export default tseslint.config(
   // TypeScript 규칙
   ...tseslint.configs.recommended,
 
+  prettierConfig,
+
   // React 규칙
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
@@ -30,6 +33,7 @@ export default tseslint.config(
       'react-hooks': reactHooksPlugin,
       import: importPlugin,
       'simple-import-sort': simpleImportSort,
+      prettier: prettierPlugin,
     },
     settings: {
       react: {
@@ -44,6 +48,7 @@ export default tseslint.config(
       },
     },
     rules: {
+      'prettier/prettier': 'error',
       // ========================================
       // React 규칙
       // ========================================

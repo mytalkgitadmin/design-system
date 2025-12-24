@@ -43,7 +43,8 @@ export const Button = ({
   const finalSize = size ?? buttonTheme.defaultSize;
   const finalVariant = variant ?? buttonTheme.defaultVariant;
   const finalRadius = buttonTheme.radius ?? global.radius.sm;
-  const finalFontWeight = buttonTheme.fontWeight ?? global.typography.fontWeight.semibold;
+  const finalFontWeight =
+    buttonTheme.fontWeight ?? global.typography.fontWeight.semibold;
 
   // 컬러 스킴 가져오기
   // 1. Theme에 정의된 프리셋인지 확인

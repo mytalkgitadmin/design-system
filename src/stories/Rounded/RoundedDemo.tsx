@@ -4,7 +4,9 @@ export type RoundedDemoProps = {
   rounded?: keyof typeof rounded;
 };
 
-export const RoundedDemo = ({ rounded: roundedSize = 'none' }: RoundedDemoProps) => {
+export const RoundedDemo = ({
+  rounded: roundedSize = 'none',
+}: RoundedDemoProps) => {
   return (
     <div
       style={{

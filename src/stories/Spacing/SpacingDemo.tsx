@@ -14,7 +14,7 @@ export type SpacingDemoProps = {
   gap?: keyof typeof spacing;
   gapY?: keyof typeof spacing;
   gapX?: keyof typeof spacing;
-}
+};
 
 export const SpacingDemo = ({
   margin = 0,
@@ -118,4 +118,4 @@ export const SpacingDemo = ({
       </div>
     </div>
   );
-}
+};

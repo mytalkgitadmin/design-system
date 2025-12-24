@@ -22,9 +22,12 @@ export const lineHeight = styleVariants(typography.lineHeight, (value) => ({
 }));
 
 // Letter Spacing utilities
-export const letterSpacing = styleVariants(typography.letterSpacing, (value) => ({
-  letterSpacing: value,
-}));
+export const letterSpacing = styleVariants(
+  typography.letterSpacing,
+  (value) => ({
+    letterSpacing: value,
+  })
+);
 
 // Text Align utilities
 export const textAlign = styleVariants(typography.textAlign, (value) => ({

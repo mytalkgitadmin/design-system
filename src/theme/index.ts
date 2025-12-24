@@ -4,9 +4,19 @@
  */
 
 // Types
-export type { ButtonTheme, ColorScheme, IconTheme, InputTheme, TextTheme } from './components';
-export type { ColorTheme, GlobalTheme, RadiusTheme, TypographyTheme } from './global';
-export type { DeepPartial,Theme } from './types';
+export type {
+  ButtonTheme,
+  ColorScheme,
+  IconTheme,
+  TextTheme,
+} from './components';
+export type {
+  ColorTheme,
+  GlobalTheme,
+  RadiusTheme,
+  TypographyTheme,
+} from './global';
+export type { DeepPartial, Theme } from './types';
 
 // Default Theme
 export { defaultTheme } from './defaultTheme';

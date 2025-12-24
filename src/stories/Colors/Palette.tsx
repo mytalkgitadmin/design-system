@@ -15,7 +15,7 @@ export type PaletteProps = {
   copyFormat?: CopyFormat;
   category?: 'primitive' | 'semantic' | 'brand';
   description?: string;
-}
+};
 
 const ColorBox: React.FC<{
   color: string;
@@ -48,7 +48,10 @@ const ColorBox: React.FC<{
           // "Brand 1"이나 "Brand 2" 형식 처리
           if (brandParts[0] === 'brand' && brandParts[1].match(/\d/)) {
             const brandNum = brandParts[1];
-            const propName = brandParts.filter(p => !p.match(/\(|\)/)).slice(2).join('-');
+            const propName = brandParts
+              .filter((p) => !p.match(/\(|\)/))
+              .slice(2)
+              .join('-');
             return `theme.brand${brandNum}.${propName}`;
           }
 
@@ -152,7 +155,9 @@ export const Palette: React.FC<PaletteProps> = (props) => {
       <section>
         <h3>{props.title}</h3>
         {props.description && (
-          <p style={{ fontSize: '14px', color: '#888e9c', marginBottom: '16px' }}>
+          <p
+            style={{ fontSize: '14px', color: '#888e9c', marginBottom: '16px' }}
+          >
             {props.description}
           </p>
         )}

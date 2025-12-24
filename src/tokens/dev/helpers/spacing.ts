@@ -15,15 +15,15 @@
  */
 
 export const spacing = {
-  0: '0rem',      // 0px
-  4: '0.4rem',    // 4px - 최소 단위
-  8: '0.8rem',    // 8px - 기본 단위
-  12: '1.2rem',   // 12px
-  16: '1.6rem',   // 16px
-  24: '2.4rem',   // 24px
-  32: '3.2rem',   // 32px
-  48: '4.8rem',   // 48px
-  64: '6.4rem',   // 64px
+  0: '0rem', // 0px
+  4: '0.4rem', // 4px - 최소 단위
+  8: '0.8rem', // 8px - 기본 단위
+  12: '1.2rem', // 12px
+  16: '1.6rem', // 16px
+  24: '2.4rem', // 24px
+  32: '3.2rem', // 32px
+  48: '4.8rem', // 48px
+  64: '6.4rem', // 64px
 } as const;
 
 /**
@@ -63,16 +63,16 @@ export const negativeSpacing = {
  */
 export const insetSpacing = {
   squish: {
-    y: spacing[8],   // 상하: 8px
-    x: spacing[12],  // 좌우: 12px
+    y: spacing[8], // 상하: 8px
+    x: spacing[12], // 좌우: 12px
   },
   default: {
-    y: spacing[12],  // 상하: 12px
-    x: spacing[16],  // 좌우: 16px
+    y: spacing[12], // 상하: 12px
+    x: spacing[16], // 좌우: 16px
   },
   comfortable: {
-    y: spacing[16],  // 상하: 16px
-    x: spacing[24],  // 좌우: 24px
+    y: spacing[16], // 상하: 16px
+    x: spacing[24], // 좌우: 24px
   },
 } as const;
 
@@ -86,7 +86,9 @@ export type InsetSpacingKey = keyof typeof insetSpacing;
  * Storybook을 위한 options 배열
  */
 export const spacingOptions = Object.keys(spacing).map(Number) as Spacing[];
-export const spacingPxOptions = Object.keys(spacingPx).map(Number) as SpacingPx[];
+export const spacingPxOptions = Object.keys(spacingPx).map(
+  Number
+) as SpacingPx[];
 
 /**
  * Spacing 유틸리티 함수
@@ -107,6 +109,6 @@ export const spacingUtils = {
    * @example toShorthand('md', 'lg') => '1.6rem 2.4rem'
    */
   toShorthand: (...keys: Spacing[]): string => {
-    return keys.map(key => spacing[key]).join(' ');
+    return keys.map((key) => spacing[key]).join(' ');
   },
 } as const;

@@ -47,7 +47,7 @@ export const Text = ({
   // 3. 프리셋이 아니면 커스텀 컬러로 처리
   const colorScheme =
     textTheme.colorSchemes[color as keyof typeof textTheme.colorSchemes];
-  const finalColor = color ? colorScheme ?? color : textTheme.defaultColor;
+  const finalColor = color ? (colorScheme ?? color) : textTheme.defaultColor;
 
   // HTML 태그 결정: as prop > preset 기본값 > 'p'
   const Component = as || presetValues?.element || 'p';
